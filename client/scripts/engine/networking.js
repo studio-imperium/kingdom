@@ -1,7 +1,7 @@
-// const addr = "server.kingdomcrushers.io"
-// const prefixs = ["wss", "https"]
-const addr = "localhost:8082"
-const prefixs = ["ws", "http"]
+const addr = "server.kingdomcrushers.io"
+const prefixs = ["wss", "https"]
+// const addr = "localhost:8082"
+// const prefixs = ["ws", "http"]
 let CONNECTED = false
 let socket
 let token
@@ -261,20 +261,6 @@ function loot_loot(data) {
   }
 }
 
-function set_dead(data) {
-  const id = data.getUint32(1, true)
-
-  // The server tells us explicitly when an entity dies so we can play the
-  // death animation and remove it immediately, instead of waiting for the
-  // no-frames timeout. confirmed_dead also blocks any in-flight world-state
-  // frame from reviving it.
-  const entity = npcs[id] || characters[id]
-  if (entity) {
-    entity.confirmed_dead = true
-    entity.kill(id)
-  }
-}
-
 function damaged(data) {
   let offset = 1
   const id = data.getUint32(offset, true)
@@ -431,9 +417,6 @@ function connect() {
         break
       case LOOT_LOOTED:
         loot_loot(data)
-        break
-      case CHARACTER_DEAD:
-        set_dead(data)
         break
       default:
         console.log("Bad packet recieved: ", packet_type)

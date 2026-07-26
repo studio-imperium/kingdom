@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"server/engine"
 	"strconv"
-	"sync"
 
 	"github.com/gorilla/websocket"
 )
@@ -21,31 +20,11 @@ type Client struct {
 	instance        *engine.Engine
 	simulation      *engine.Engine
 	discoveredCells map[uint16]*engine.Cell
-	closeOnce       sync.Once
-}
-
-// cleanup tears the client down exactly once: it removes the client from the
-// global registry, marks its character dead (which stops StartSimulation and
-// UpdateCells on their next tick) and closes the socket (which unblocks the
-// read and write pumps). Without this, a write error used to leave the client
-// in Clients with nothing draining its send channel — the channel filled, and
-// PropogateWorldState dropped every world state forever, so the player stayed
-// connected with terrain loaded but never saw another entity again.
-func (client *Client) cleanup() {
-	client.closeOnce.Do(func() {
-		fmt.Println("Client destroyed: ", client.id)
-
-		clientsMu.Lock()
-		delete(Clients, client.id)
-		clientsMu.Unlock()
-
-		client.instance.RemoveCharacter(client.id, true)
-		client.conn.Close()
-	})
 }
 
 func (client *Client) destroy() {
-	client.cleanup()
+	fmt.Println("Client destroyed: ", client.id)
+	client.send <- []byte{11}
 }
 
 var guests int = 0
@@ -69,25 +48,21 @@ func CreateClient(conn *websocket.Conn) {
 func (client *Client) writePackets() {
 	conn := client.conn
 	for {
-		message, ok := <-client.send
-		if !ok {
-			return
-		}
+		message, _ := <-client.send
 
-		// A bare 1-byte {11} is the internal "this player died" sentinel and
-		// triggers teardown. A longer message starting with 11 is a real
-		// CHARACTER_DEAD wire packet (e.g. an npc death, [11, id]) and must be
-		// forwarded to the client normally, not treated as a disconnect.
-		if len(message) == 1 && message[0] == 11 {
-			for _, recipient := range snapshotClients() {
-				recipient.SendMessage(0, "System", client.username+" has died!")
+		if message[0] == 11 {
+			for _, recipient := range Clients {
+				recipient.SendMessage(0, "System", client.username + " has died!")
 			}
-			client.cleanup()
-			return
+			client.conn.Close()
+			client.instance.RemoveCharacter(client.id, true)
+			delete(Clients, client.id)
+			break
 		}
 
-		if err := conn.WriteMessage(websocket.BinaryMessage, message); err != nil {
-			client.cleanup()
+		err := conn.WriteMessage(websocket.BinaryMessage, message)
+
+		if err != nil {
 			return
 		}
 	}
@@ -112,17 +87,8 @@ func (client *Client) sendToNearby(payload []byte, includeSelf bool) {
 		if !includeSelf && id == client.id {
 			return
 		}
-		clientsMu.RLock()
-		target, ok := Clients[id]
-		clientsMu.RUnlock()
-		if ok {
-			// Non-blocking: never stall a sender on a backed-up peer. A dropped
-			// ally-attack relay just costs a missed animation; the world state
-			// resyncs it. Blocking here used to wedge whole goroutines.
-			select {
-			case target.send <- payload:
-			default:
-			}
+		if target, ok := Clients[id]; ok {
+			target.send <- payload
 		}
 	})
 }

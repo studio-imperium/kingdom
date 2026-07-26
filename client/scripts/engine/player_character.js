@@ -79,14 +79,7 @@ function update_healthbar(health, max_health) {
 function attack() {
   const data = item_data[character.hand]
 
-  if (data && (data.type == "head" || data.type == "body")) {
-    // Holding a helmet/armor and clicking equips it into the matching gear
-    // slot, same as dragging it there (like clicking to drink a potion).
-    if (attack_cooldown < 0) {
-      attack_cooldown = 0.5
-      change_inventory(data.type == "head" ? 24 : 25, selected_slot)
-    }
-  } else if (data && data.on_use && attack_cooldown < 0) {
+  if (data && data.on_use && attack_cooldown < 0) {
     attack_cooldown = 0.5
     send_attack(character.object.x, character.object.y, character.object.angle)
   } else if (data && data.attacks) {
@@ -150,43 +143,34 @@ function init_combat() {
   })
 }
 
-// Track which movement keys are physically held and derive velocity from that
-// set every event. Keying off e.code (physical key) instead of e.key avoids the
-// classic stuck-key bug where Shift/CapsLock change e.key between the keydown
-// ("d") and keyup ("D"), so the keyup never cancels the keydown.
-const pressed_keys = new Set()
-const movement_keys = new Set(["KeyW", "KeyA", "KeyS", "KeyD"])
-
-function recompute_velocity() {
-  velocity.x =
-    (pressed_keys.has("KeyD") ? 1 : 0) - (pressed_keys.has("KeyA") ? 1 : 0)
-  velocity.y =
-    (pressed_keys.has("KeyS") ? 1 : 0) - (pressed_keys.has("KeyW") ? 1 : 0)
-}
-
-function reset_keys() {
-  pressed_keys.clear()
-  recompute_velocity()
-}
-
 document.addEventListener("keydown", (e) => {
   if (e.repeat) return
-  if (movement_keys.has(e.code)) {
-    pressed_keys.add(e.code)
-    recompute_velocity()
+  if (e.key == "d") {
+    velocity.x += 1
+  }
+  if (e.key == "a") {
+    velocity.x -= 1
+  }
+  if (e.key == "w") {
+    velocity.y -= 1
+  }
+  if (e.key == "s") {
+    velocity.y += 1
   }
 })
 document.addEventListener("keyup", (e) => {
-  if (pressed_keys.delete(e.code)) {
-    recompute_velocity()
+  if (e.key == "d") {
+    velocity.x -= 1
   }
-})
-
-// If the window loses focus (alt-tab, OS shortcut, clicking out) the browser
-// stops delivering keyup events, which would otherwise leave a key "stuck".
-window.addEventListener("blur", reset_keys)
-document.addEventListener("visibilitychange", () => {
-  if (document.hidden) reset_keys()
+  if (e.key == "a") {
+    velocity.x += 1
+  }
+  if (e.key == "w") {
+    velocity.y += 1
+  }
+  if (e.key == "s") {
+    velocity.y -= 1
+  }
 })
 
 function get_mouse_target() {

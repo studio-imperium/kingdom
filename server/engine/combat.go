@@ -51,7 +51,7 @@ func (npc *Npc) Projectile(p ProjectileSpawnData) (uint32, []byte) {
 
 	packet := projectile.Pack()
 
-	for _, character := range npc.NearbyChars() {
+	for _, character := range npc.nearby {
 		character.Simulation.AddProjectile(id, projectile)
 	}
 
@@ -69,7 +69,7 @@ func (npc *Npc) Bomb(b BombSpawnData) (uint32, []byte) {
 
 	packet := bomb.Pack()
 
-	for _, character := range npc.NearbyChars() {
+	for _, character := range npc.nearby {
 		character.Simulation.AddBomb(id, bomb)
 	}
 
@@ -107,8 +107,8 @@ func (npc *Npc) NewAttack() {
 		}
 		npc.instance.mu.Lock()
 
-		for _, character := range npc.NearbyChars() {
-			trySend(character.send, data.Bytes())
+		for _, character := range npc.nearby {
+			*character.send <- data.Bytes()
 		}
 
 		npc.attack += 1

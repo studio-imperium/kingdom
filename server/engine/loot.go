@@ -21,11 +21,8 @@ func (l *Loot) GetY() float32 { return l.y }
 
 func CreateLoot(loot uint8, x float32, y float32) *Loot {
 	id := rand.Uint32()
-	// Symmetric scatter so loot isn't biased toward one corner. A directional
-	// (+1..+2) bias used to cancel out leftward player drops, landing the item
-	// back on top of the player for an instant re-pickup.
-	x += (rand.Float32()*2 - 1) * 0.5
-	y += (rand.Float32()*2 - 1) * 0.5
+	x += rand.Float32() + 1
+	y += rand.Float32() + 1
 	return &Loot{
 		id:    id,
 		loot:  loot,

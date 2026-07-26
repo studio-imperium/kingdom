@@ -1,11 +1,4 @@
 const render_dist = 32
-// How long (ms) without a world-state frame before an entity is removed. Real
-// deaths are now signalled explicitly (CHARACTER_DEAD), so this is purely a
-// safety-net for entities that leave view or whose packets are lost. Kept
-// generous (the server broadcasts every 200ms) so a few dropped packets never
-// cause a live entity to flicker out; kill() is also cancelled if a fresh
-// frame arrives (see kill/update).
-const DEATH_TIMEOUT = 1000
 const size = 2500
 const tiles = new Uint8Array(size * size)
 const added = new Uint8Array(size * size)
@@ -57,7 +50,7 @@ function start_engine() {
         colorAnimator.tick(deltaMS)
       }
 
-      if (Date.now() > interpolator.last_frame + DEATH_TIMEOUT) {
+      if (Date.now() > interpolator.last_frame + 400) {
         characters[id].kill(id)
       }
     }
@@ -69,7 +62,7 @@ function start_engine() {
         colorAnimator.tick(deltaMS)
       }
 
-      if (Date.now() > interpolator.last_frame + DEATH_TIMEOUT) {
+      if (Date.now() > interpolator.last_frame + 400) {
         npcs[id].kill(id)
       }
     }

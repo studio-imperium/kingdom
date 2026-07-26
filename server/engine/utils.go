@@ -5,22 +5,6 @@ import (
 	"math/rand/v2"
 )
 
-// trySend performs a non-blocking send to a client's outbound channel. The
-// engine sends from goroutines that often hold a world/simulation mutex (npc
-// ticks, combat resolution, loot pickup). A blocking send to a backed-up
-// client would freeze that goroutine while holding the lock and cascade into
-// every other client. Dropping a packet under backpressure is fine — the
-// periodic world state resyncs visible entity state.
-func trySend(ch *chan []byte, payload []byte) {
-	if ch == nil {
-		return
-	}
-	select {
-	case *ch <- payload:
-	default:
-	}
-}
-
 type Entity interface {
 	GetX() float32
 	GetY() float32

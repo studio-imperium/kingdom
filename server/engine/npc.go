@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"math/rand/v2"
-	"sync"
 	"time"
 )
 
@@ -26,62 +25,24 @@ type Npc struct {
 	attack      uint8
 	attackTimer float32
 
-	// nearby is written by every client's StartSimulation goroutine
-	// (EnterView/ExitView) and read during the global engine tick. Those run
-	// under different locks, so the map needs its own mutex or Go fatals on a
-	// concurrent map write.
-	nearby   map[uint32]*Character
-	nearbyMu sync.Mutex
-	damage   map[uint32]float32
-	Dead     bool
+	nearby map[uint32]*Character
+	damage map[uint32]float32
+	Dead   bool
 }
 
-// NearbyChars returns a snapshot of the characters currently in view of this
-// npc, so callers can range/send without holding nearbyMu.
-func (npc *Npc) NearbyChars() []*Character {
-	npc.nearbyMu.Lock()
-	defer npc.nearbyMu.Unlock()
-	out := make([]*Character, 0, len(npc.nearby))
-	for _, character := range npc.nearby {
-		out = append(out, character)
-	}
-	return out
-}
-
-// NearbyMap returns a snapshot copy of the nearby map (id -> character).
-func (npc *Npc) NearbyMap() map[uint32]*Character {
-	npc.nearbyMu.Lock()
-	defer npc.nearbyMu.Unlock()
-	out := make(map[uint32]*Character, len(npc.nearby))
-	for id, character := range npc.nearby {
-		out[id] = character
-	}
-	return out
-}
-
-func (npc *Npc) NearbyCount() int {
-	npc.nearbyMu.Lock()
-	defer npc.nearbyMu.Unlock()
-	return len(npc.nearby)
-}
-
-func (npc *Npc) GetX() float32      { return npc.x }
-func (npc *Npc) GetY() float32      { return npc.y }
-func (npc *Npc) GetId() uint32      { return npc.entityID }
-func (npc *Npc) GetHitbox() float32 { return float32(npcData[npc.id].Hitbox) }
+func (npc Npc) GetX() float32      { return npc.x }
+func (npc Npc) GetY() float32      { return npc.y }
+func (npc Npc) GetId() uint32      { return npc.entityID }
+func (npc Npc) GetHitbox() float32 { return float32(npcData[npc.id].Hitbox) }
 func (npc *Npc) Damage(amount float32) {
 	npc.health -= amount
 
-	if npc.health <= 0 {
-		// Killing blow: broadcast the death (CHARACTER_DEAD) instead of a hit
-		// flash so clients remove it instantly rather than waiting out the
-		// no-frames timeout.
-		npc.Die()
-		return
+	if npc.health <= 0 && !npc.Dead {
+		npc.Dead = true
+		npc.Death()
 	}
 
-	nearby := npc.NearbyChars()
-	if len(nearby) == 0 {
+	if len(npc.nearby) == 0 {
 		return
 	}
 
@@ -90,27 +51,8 @@ func (npc *Npc) Damage(amount float32) {
 	binary.Write(data, binary.LittleEndian, npc.entityID)
 	packet := data.Bytes()
 
-	for _, character := range nearby {
-		trySend(character.send, packet)
-	}
-}
-
-// Die marks the npc dead, runs its death/loot logic, and tells every nearby
-// client to remove it immediately via a CHARACTER_DEAD packet. Idempotent.
-func (npc *Npc) Die() {
-	if npc.Dead {
-		return
-	}
-	npc.Dead = true
-	npc.Death()
-
-	data := new(bytes.Buffer)
-	data.WriteByte(byte(11)) // CHARACTER_DEAD
-	binary.Write(data, binary.LittleEndian, npc.entityID)
-	packet := data.Bytes()
-
-	for _, character := range npc.NearbyChars() {
-		trySend(character.send, packet)
+	for _, character := range npc.nearby {
+		*character.send <- packet
 	}
 }
 func (npc *Npc) Death() {
@@ -119,8 +61,7 @@ func (npc *Npc) Death() {
 	lootPool := GetLootData(data.Loot)
 	SBThreshold := min(float32(200), data.Health/10.0)
 
-	nearby := npc.NearbyMap()
-	for id, char := range nearby {
+	for id, char := range npc.nearby {
 		damage, ok := npc.damage[id]
 		for _, loot := range lootPool {
 			odds := rand.Float32() <= loot.Chance
@@ -134,7 +75,7 @@ func (npc *Npc) Death() {
 		odds := rand.Float32() <= loot.Chance
 		if odds && !loot.SB {
 			l := CreateLoot(loot.Loot, npc.x, npc.y)
-			for _, char := range nearby {
+			for _, char := range npc.nearby {
 				char.Simulation.AddLoot(l)
 			}
 		}
@@ -166,7 +107,7 @@ func (npc *Npc) UpdateTarget() {
 	min_dist := GetNpcData(npc.id).Range
 	found_character := false
 
-	for _, character := range npc.NearbyChars() {
+	for _, character := range npc.nearby {
 		dist := float32(Distance(npc, character))
 		if dist < min_dist {
 			npc.target = character
@@ -184,14 +125,10 @@ func (npc *Npc) UpdateTarget() {
 }
 
 func (npc *Npc) EnterView(id uint32, character *Character) {
-	npc.nearbyMu.Lock()
 	npc.nearby[id] = character
-	npc.nearbyMu.Unlock()
 }
 func (npc *Npc) ExitView(id uint32, character *Character) {
-	npc.nearbyMu.Lock()
 	delete(npc.nearby, id)
-	npc.nearbyMu.Unlock()
 	if target, ok := npc.target.(*Character); ok && target == character {
 		npc.target = nil
 	}
@@ -247,7 +184,7 @@ func (npc *Npc) Tick(delta time.Duration) {
 	npc.attackTimer -= deltaMs / 1000.0
 
 	if npc.health <= 0 {
-		npc.Die()
+		npc.Dead = true
 	}
 
 	if npc.InCombat() {

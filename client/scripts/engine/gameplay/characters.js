@@ -14,33 +14,11 @@ class Character {
     this.animator = new Animator(this.object)
     this.interpolator = new Interpolator(this.object)
     this.colorAnimator = new ColorAnimator(this.object)
-    this.dying = false
-    this.death_timeout = null
-    this.confirmed_dead = false
 
     add_object(this.object)
   }
 
-  revive() {
-    // A fresh frame arrived after we started dying — cancel the pending
-    // destroy and restore a sane visible state so the player doesn't flicker.
-    this.dying = false
-    clearTimeout(this.death_timeout)
-    this.death_timeout = null
-    this.colorAnimator.active = false
-    this.object.tint = 0xffffff
-    // Base entity scale is 1/64 (see add_object and the animator's
-    // object_scale / 64). Resetting to 1 would render the player 64x too big.
-    this.object.scale.set(1 / 64)
-    this.animator.animation = null
-    this.animator.timestamp = 0
-  }
-
   update(x, y, angle, health, hand, head, body) {
-    if (this.confirmed_dead) return
-    if (this.dying) {
-      this.revive()
-    }
     if (hand + head + body != this.kit) {
       let tmp_x = this.object.x
       let tmp_y = this.object.y
@@ -83,14 +61,12 @@ class Character {
   }
 
   kill(id) {
-    if (this.dying) return
-    this.dying = true
     this.colorAnimator.animate(0xff0000, 300)
     this.animator.animate(0, 0.2)
     this.interpolator.frames = []
     this.interpolator.last_frame = Date.now()
 
-    this.death_timeout = setTimeout(() => {
+    setTimeout(() => {
       this.object.destroy()
       delete characters[id]
     }, 300)

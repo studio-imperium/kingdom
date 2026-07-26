@@ -133,7 +133,7 @@ func (simulation *Engine) StartSimulation(clientID uint32, instance *Engine, cli
 			} else if Distance(clientCharacter, loot) < 1 && clientCharacter.AddItemOrBust(loot.loot) {
 				loot.Dead = true
 				clientCharacter.Apply()
-				trySend(clientCharacter.send, loot.Looted())
+				*clientCharacter.send <- loot.Looted()
 			}
 		}
 

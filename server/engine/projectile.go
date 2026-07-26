@@ -40,10 +40,18 @@ func newProjectile(
 }
 
 func (p *projectile) tick(seconds float32, data assets.Projectile) {
-	radians := (float32(p.angle) - 90) * math.Pi / 180
+	direction := p.direction()
 	distance := data.Speed * seconds * 60 / 16
-	p.position.X += float32(math.Cos(float64(radians))) * distance
-	p.position.Y += float32(math.Sin(float64(radians))) * distance
+	p.position.X += direction.X * distance
+	p.position.Y += direction.Y * distance
+}
+
+func (p *projectile) direction() Position {
+	radians := (float32(p.angle) - 90) * math.Pi / 180
+	return Position{
+		X: float32(math.Cos(float64(radians))),
+		Y: float32(math.Sin(float64(radians))),
+	}
 }
 
 func (p *projectile) state() ProjectileState {

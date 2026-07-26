@@ -2,22 +2,23 @@ package engine
 
 import "kingdoms/engine/assets"
 
-func (n *npc) move(seconds float32, data assets.NPC, target *character) {
-	if !n.hasTarget || target == nil {
+func (n *npc) move(seconds float32, data assets.NPC, target combatant) {
+	if target == nil {
 		n.movement = "wander"
 		n.wander(seconds, data)
 		return
 	}
 
+	position := target.combatPosition()
 	switch n.movement {
 	case "chase":
-		n.chase(seconds, data, target.position)
+		n.chase(seconds, data, position)
 	case "run":
-		n.run(seconds, data, target.position)
+		n.run(seconds, data, position)
 	case "overshoot":
-		n.overshoot(seconds, data, target.position)
+		n.overshoot(seconds, data, position)
 	case "hover":
-		n.hover(seconds, data, target.position)
+		n.hover(seconds, data, position)
 	case "turret":
 		n.looking = true
 	default:

@@ -34,7 +34,7 @@ func (w *World) damageNPC(npc *npc, ownerID uint32, damage float32) []Event {
 	}
 
 	npc.health -= damage
-	if ownerID != 0 {
+	if _, player := w.characters[ownerID]; player {
 		npc.damage[ownerID] += damage
 	}
 

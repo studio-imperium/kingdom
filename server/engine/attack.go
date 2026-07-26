@@ -48,10 +48,9 @@ func (w *World) Attack(
 		projectile := newProjectile(
 			projectileID,
 			spawn.ID,
-			id,
+			character,
 			Position{X: x + spawn.X, Y: y + spawn.Y},
 			(uint16(spawn.Angle)+attackAngle)%360,
-			false,
 			data.Damage*character.power,
 		)
 		w.projectiles[projectileID] = projectile
@@ -64,10 +63,8 @@ func (w *World) Attack(
 		bomb := newBomb(
 			bombID,
 			spawn.ID,
-			id,
+			character,
 			Position{X: targetX + spawn.X, Y: targetY + spawn.Y},
-			character.position,
-			false,
 			data.Damage,
 			data.Airtime,
 		)

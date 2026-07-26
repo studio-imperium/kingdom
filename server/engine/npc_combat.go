@@ -14,19 +14,18 @@ func (w *World) tickNPCs(seconds float32) []Event {
 			continue
 		}
 		data, _ := w.catalog.NPC(npc.typeID)
-		npc.updateTarget(w.characters, data)
-		target := w.characters[npc.targetID]
+		npc.target = w.nearestEnemy(npc, min(data.Range, renderDistance))
 
-		if npc.tick(seconds, data, target, w.catalog) {
-			events = append(events, w.npcAttack(npc, data, target))
+		if npc.tick(seconds, data, npc.target, w.catalog) {
+			events = append(events, w.npcAttack(npc, data, npc.target))
 		}
-		npc.move(seconds, data, target)
+		npc.move(seconds, data, npc.target)
 	}
 
 	return events
 }
 
-func (w *World) npcAttack(npc *npc, data assets.NPC, target *character) Event {
+func (w *World) npcAttack(npc *npc, data assets.NPC, target combatant) Event {
 	attack, _ := npc.currentAttack(data)
 	message := AttackMessage{
 		SourceID:  npc.id,
@@ -37,15 +36,14 @@ func (w *World) npcAttack(npc *npc, data assets.NPC, target *character) Event {
 	for _, spawn := range attack.Projectiles {
 		projectileData, _ := w.catalog.Projectile(spawn.ID)
 		projectileID := uniqueID(w.projectiles)
-		rawAngle := int(spawn.Angle) + int(angle(target.position, npc.position)) - 90
+		rawAngle := int(spawn.Angle) + int(angle(target.combatPosition(), npc.position)) - 90
 		projectileAngle := uint16((rawAngle%360 + 360) % 360)
 		projectile := newProjectile(
 			projectileID,
 			spawn.ID,
-			0,
+			npc,
 			Position{X: npc.position.X + spawn.X, Y: npc.position.Y + spawn.Y},
 			projectileAngle,
-			true,
 			projectileData.Damage,
 		)
 		w.projectiles[projectileID] = projectile
@@ -55,13 +53,12 @@ func (w *World) npcAttack(npc *npc, data assets.NPC, target *character) Event {
 	for _, spawn := range attack.Bombs {
 		bombData, _ := w.catalog.Bomb(spawn.ID)
 		bombID := uniqueID(w.bombs)
+		targetPosition := target.combatPosition()
 		bomb := newBomb(
 			bombID,
 			spawn.ID,
-			0,
-			Position{X: target.position.X + spawn.X, Y: target.position.Y + spawn.Y},
-			npc.position,
-			true,
+			npc,
+			Position{X: targetPosition.X + spawn.X, Y: targetPosition.Y + spawn.Y},
 			bombData.Damage,
 			bombData.Airtime,
 		)
@@ -70,9 +67,13 @@ func (w *World) npcAttack(npc *npc, data assets.NPC, target *character) Event {
 	}
 
 	for _, summon := range attack.Summons {
-		w.spawnNPC(summon.ID, Position{
-			X: npc.position.X + summon.X,
-			Y: npc.position.Y + summon.Y,
+		w.spawnNPC(NPCSpawn{
+			Type:     summon.ID,
+			Friendly: npc.friendly,
+			Position: Position{
+				X: npc.position.X + summon.X,
+				Y: npc.position.Y + summon.Y,
+			},
 		})
 	}
 

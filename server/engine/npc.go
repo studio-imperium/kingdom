@@ -12,8 +12,9 @@ type npc struct {
 	position       Position
 	origin         Position
 	health         float32
-	targetID       uint32
-	hasTarget      bool
+	friendly       bool
+	body           assets.NPCBody
+	target         combatant
 	looking        bool
 	destination    Position
 	hasDestination bool
@@ -27,13 +28,20 @@ type npc struct {
 	dead           bool
 }
 
-func newNPC(id uint32, typeID uint8, position Position, data assets.NPC) *npc {
+func newNPC(id uint32, spawn NPCSpawn, data assets.NPC) *npc {
+	body := data.Body
+	if spawn.BodyOverride != nil {
+		body = spawn.BodyOverride
+	}
+
 	return &npc{
 		id:        id,
-		typeID:    typeID,
-		position:  position,
-		origin:    position,
+		typeID:    spawn.Type,
+		position:  spawn.Position,
+		origin:    spawn.Position,
 		health:    data.Health,
+		friendly:  data.Friendly || spawn.Friendly,
+		body:      body,
 		movement:  "wander",
 		usedModes: make([]bool, len(data.Modes)),
 		damage:    make(map[uint32]float32),
@@ -41,48 +49,49 @@ func newNPC(id uint32, typeID uint8, position Position, data assets.NPC) *npc {
 }
 
 func (n *npc) state() NPCState {
-	return NPCState{
+	state := NPCState{
 		ID:       n.id,
 		Type:     n.typeID,
 		X:        n.position.X,
 		Y:        n.position.Y,
 		Health:   n.health,
-		TargetID: n.targetID,
-		Targeted: n.looking && n.hasTarget,
+		Targeted: n.looking && n.target != nil,
+		Friendly: n.friendly,
+		Body:     n.body,
 	}
+	if n.target != nil {
+		state.TargetID = n.target.combatID()
+	}
+	return state
 }
 
-func (n *npc) updateTarget(characters map[uint32]*character, data assets.NPC) {
-	maxDistance := min(data.Range, renderDistance)
-	nearestDistance := maxDistance
-	var nearestID uint32
-	found := false
-
-	for id, character := range characters {
-		if character.dead {
-			continue
-		}
-		currentDistance := distance(n.position, character.position)
-		if currentDistance < nearestDistance {
-			nearestDistance = currentDistance
-			nearestID = id
-			found = true
-		}
-	}
-
-	n.targetID = nearestID
-	n.hasTarget = found
-	if !found {
-		n.looking = false
-	}
+func (n *npc) combatID() uint32 {
+	return n.id
 }
 
-func (n *npc) tick(seconds float32, data assets.NPC, target *character, catalog *assets.Catalog) bool {
+func (n *npc) combatPosition() Position {
+	return n.position
+}
+
+func (n *npc) combatRadius(catalog *assets.Catalog) float32 {
+	data, _ := catalog.NPC(n.typeID)
+	return data.Hitbox
+}
+
+func (n *npc) isFriendly() bool {
+	return n.friendly
+}
+
+func (n *npc) isDead() bool {
+	return n.dead
+}
+
+func (n *npc) tick(seconds float32, data assets.NPC, target combatant, catalog *assets.Catalog) bool {
 	n.modeTimer -= seconds
 	n.attackTimer -= seconds
 
-	if !n.hasTarget || target == nil || target.dead {
-		n.hasTarget = false
+	if target == nil || target.isDead() {
+		n.target = nil
 		n.looking = false
 		n.modeTimer = 0
 		return false
@@ -95,11 +104,12 @@ func (n *npc) tick(seconds float32, data assets.NPC, target *character, catalog 
 		n.newMode(data)
 	}
 
-	if n.movement == "hover" && !n.hovering(data, target.position) {
+	targetPosition := target.combatPosition()
+	if n.movement == "hover" && !n.hovering(data, targetPosition) {
 		return false
 	}
 
-	return n.attackTimer < 0 && n.canAttack(data, target.position, catalog)
+	return n.attackTimer < 0 && n.canAttack(data, targetPosition, catalog)
 }
 
 func (n *npc) validMode(data assets.NPC, index uint8) bool {

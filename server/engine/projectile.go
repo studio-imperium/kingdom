@@ -9,8 +9,8 @@ import (
 type projectile struct {
 	id       uint32
 	typeID   uint8
-	ownerID  uint32
-	hostile  bool
+	sourceID uint32
+	friendly bool
 	damage   float32
 	position Position
 	origin   Position
@@ -21,17 +21,16 @@ type projectile struct {
 func newProjectile(
 	id uint32,
 	typeID uint8,
-	ownerID uint32,
+	source combatant,
 	position Position,
 	angle uint16,
-	hostile bool,
 	damage float32,
 ) *projectile {
 	return &projectile{
 		id:       id,
 		typeID:   typeID,
-		ownerID:  ownerID,
-		hostile:  hostile,
+		sourceID: source.combatID(),
+		friendly: source.isFriendly(),
 		damage:   damage,
 		position: position,
 		origin:   position,
@@ -74,34 +73,21 @@ func (w *World) tickProjectiles(seconds float32) []Event {
 		}
 
 		hit := false
-		if projectile.hostile {
-			for targetID, character := range w.characters {
-				if character.dead || projectile.hit(targetID) ||
-					!intersects(projectile.position, data.Hitbox, character.position, 0.5) {
-					continue
-				}
-				projectile.hits[targetID] = struct{}{}
-				events = append(events, w.damageCharacter(character, projectile.damage)...)
-				hit = true
-				if !data.Piercing {
-					break
-				}
+		w.visitEnemies(projectile.friendly, func(target combatant) bool {
+			targetID := target.combatID()
+			if projectile.hit(targetID) || !intersects(
+				projectile.position,
+				data.Hitbox,
+				target.combatPosition(),
+				target.combatRadius(w.catalog),
+			) {
+				return false
 			}
-		} else {
-			for targetID, npc := range w.npcs {
-				npcData, _ := w.catalog.NPC(npc.typeID)
-				if npc.dead || projectile.hit(targetID) ||
-					!intersects(projectile.position, data.Hitbox, npc.position, npcData.Hitbox) {
-					continue
-				}
-				projectile.hits[targetID] = struct{}{}
-				events = append(events, w.damageNPC(npc, projectile.ownerID, projectile.damage)...)
-				hit = true
-				if !data.Piercing {
-					break
-				}
-			}
-		}
+			projectile.hits[targetID] = struct{}{}
+			events = append(events, w.damageTarget(target, projectile.sourceID, projectile.damage)...)
+			hit = true
+			return !data.Piercing
+		})
 
 		if hit && !data.Piercing {
 			delete(w.projectiles, id)

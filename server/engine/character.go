@@ -63,6 +63,26 @@ func (c *character) state() CharacterState {
 	}
 }
 
+func (c *character) combatID() uint32 {
+	return c.id
+}
+
+func (c *character) combatPosition() Position {
+	return c.position
+}
+
+func (c *character) combatRadius(*assets.Catalog) float32 {
+	return 0.5
+}
+
+func (c *character) isFriendly() bool {
+	return true
+}
+
+func (c *character) isDead() bool {
+	return c.dead
+}
+
 func (c *character) move(x, y float32, angle uint16) {
 	c.position = Position{X: x, Y: y}
 	c.angle = angle

@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"strings"
 
+	"kingdoms/engine"
 	"kingdoms/protocol"
 )
 
@@ -79,7 +80,10 @@ func (s *Server) spawn(client *client, words []string) {
 
 	spawned := 0
 	for range amount {
-		if _, valid := s.world.SpawnNPC(uint8(npcID), position); valid {
+		if _, valid := s.world.SpawnNPC(engine.NPCSpawn{
+			Type:     uint8(npcID),
+			Position: position,
+		}); valid {
 			spawned++
 		}
 	}

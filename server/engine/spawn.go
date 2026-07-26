@@ -2,10 +2,10 @@ package engine
 
 import "math/rand/v2"
 
-func (w *World) SpawnNPC(typeID uint8, position Position) (uint32, bool) {
+func (w *World) SpawnNPC(spawn NPCSpawn) (uint32, bool) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	return w.spawnNPC(typeID, position)
+	return w.spawnNPC(spawn)
 }
 
 func (w *World) SpawnLoot(item uint8, ownerID uint32, position Position) (uint32, bool) {
@@ -22,13 +22,13 @@ func (w *World) SpawnLoot(item uint8, ownerID uint32, position Position) (uint32
 	return w.addLoot(item, ownerID, position), true
 }
 
-func (w *World) spawnNPC(typeID uint8, position Position) (uint32, bool) {
-	data, valid := w.catalog.NPC(typeID)
+func (w *World) spawnNPC(spawn NPCSpawn) (uint32, bool) {
+	data, valid := w.catalog.NPC(spawn.Type)
 	if !valid {
 		return 0, false
 	}
 	id := w.entityID()
-	w.npcs[id] = newNPC(id, typeID, position, data)
+	w.npcs[id] = newNPC(id, spawn, data)
 	return id, true
 }
 
@@ -52,9 +52,12 @@ func (w *World) activate(cell *cell) {
 			continue
 		}
 		for _, npc := range spawn.NPCs {
-			w.spawnNPC(npc.ID, Position{
-				X: cell.origin.X + npc.X,
-				Y: cell.origin.Y + npc.Y,
+			w.spawnNPC(NPCSpawn{
+				Type: npc.ID,
+				Position: Position{
+					X: cell.origin.X + npc.X,
+					Y: cell.origin.Y + npc.Y,
+				},
 			})
 		}
 		return

@@ -3,8 +3,8 @@ package engine
 type bomb struct {
 	id       uint32
 	typeID   uint8
-	ownerID  uint32
-	hostile  bool
+	sourceID uint32
+	friendly bool
 	damage   float32
 	position Position
 	origin   Position
@@ -14,21 +14,19 @@ type bomb struct {
 func newBomb(
 	id uint32,
 	typeID uint8,
-	ownerID uint32,
+	source combatant,
 	position Position,
-	origin Position,
-	hostile bool,
 	damage float32,
 	timer float32,
 ) *bomb {
 	return &bomb{
 		id:       id,
 		typeID:   typeID,
-		ownerID:  ownerID,
-		hostile:  hostile,
+		sourceID: source.combatID(),
+		friendly: source.isFriendly(),
 		damage:   damage,
 		position: position,
-		origin:   origin,
+		origin:   source.combatPosition(),
 		timer:    timer,
 	}
 }
@@ -56,22 +54,17 @@ func (w *World) tickBombs(seconds float32) []Event {
 		data, valid := w.catalog.Bomb(bomb.typeID)
 		if valid {
 			radius := float32(data.Radius)
-			if bomb.hostile {
-				for _, character := range w.characters {
-					if !character.dead &&
-						intersects(bomb.position, radius, character.position, 0.5) {
-						events = append(events, w.damageCharacter(character, bomb.damage)...)
-					}
+			w.visitEnemies(bomb.friendly, func(target combatant) bool {
+				if intersects(
+					bomb.position,
+					radius,
+					target.combatPosition(),
+					target.combatRadius(w.catalog),
+				) {
+					events = append(events, w.damageTarget(target, bomb.sourceID, bomb.damage)...)
 				}
-			} else {
-				for _, npc := range w.npcs {
-					npcData, _ := w.catalog.NPC(npc.typeID)
-					if !npc.dead &&
-						intersects(bomb.position, radius, npc.position, npcData.Hitbox) {
-						events = append(events, w.damageNPC(npc, bomb.ownerID, bomb.damage)...)
-					}
-				}
-			}
+				return false
+			})
 		}
 		delete(w.bombs, id)
 	}

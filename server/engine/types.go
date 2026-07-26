@@ -1,8 +1,19 @@
 package engine
 
+import "kingdoms/engine/assets"
+
 type Position struct {
 	X float32
 	Y float32
+}
+
+type NPCBody = assets.NPCBody
+
+type NPCSpawn struct {
+	Type         uint8
+	Position     Position
+	Friendly     bool
+	BodyOverride NPCBody
 }
 
 type CharacterState struct {
@@ -28,6 +39,8 @@ type NPCState struct {
 	Health   float32
 	TargetID uint32
 	Targeted bool
+	Friendly bool
+	Body     NPCBody
 }
 
 type ProjectileState struct {

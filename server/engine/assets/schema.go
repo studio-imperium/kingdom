@@ -39,14 +39,36 @@ type NPCMode struct {
 	Attacks   []Attack `json:"attacks,omitempty"`
 }
 
+type Sprite struct {
+	W uint16 `json:"w"`
+	H uint16 `json:"h"`
+	X uint16 `json:"x"`
+	Y uint16 `json:"y"`
+}
+
+type NPCBody []NPCBodyPart
+
+type NPCBodyPart struct {
+	Type     string  `json:"type,omitempty"`
+	Label    string  `json:"label,omitempty"`
+	X        float32 `json:"x,omitempty"`
+	Y        float32 `json:"y,omitempty"`
+	Angle    float32 `json:"angle,omitempty"`
+	Scale    float32 `json:"scale,omitempty"`
+	Sprite   *Sprite `json:"sprite,omitempty"`
+	Children NPCBody `json:"children,omitempty"`
+}
+
 type NPC struct {
-	ID     uint8     `json:"id"`
-	Name   string    `json:"display"`
-	Health float32   `json:"health"`
-	Loot   uint16    `json:"loot"`
-	Range  float32   `json:"range"`
-	Hitbox float32   `json:"hitbox"`
-	Modes  []NPCMode `json:"modes,omitempty"`
+	ID       uint8     `json:"id"`
+	Name     string    `json:"display"`
+	Health   float32   `json:"health"`
+	Loot     uint16    `json:"loot"`
+	Range    float32   `json:"range"`
+	Hitbox   float32   `json:"hitbox"`
+	Friendly bool      `json:"friendly,omitempty"`
+	Body     NPCBody   `json:"body,omitempty"`
+	Modes    []NPCMode `json:"modes,omitempty"`
 }
 
 type Spawn struct {

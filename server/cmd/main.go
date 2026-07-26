@@ -1,54 +1,49 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
-	"server/engine"
-	"server/packets"
 
-	"github.com/gorilla/websocket"
+	"kingdoms/engine"
+	"kingdoms/engine/assets"
+	"kingdoms/session"
 )
 
-var upgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool {
-		return true
-	},
-}
-
-func connector(w http.ResponseWriter, r *http.Request) {
-	conn, err := upgrader.Upgrade(w, r, nil)
+func main() {
+	catalog, err := assets.Load()
 	if err != nil {
-		fmt.Println(err)
-		return
+		log.Fatal(err)
 	}
-	go packets.CreateClient(conn)
+
+	world, err := engine.NewWorld(catalog, "desertonly")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	sessions := session.New(world)
+	go sessions.Run(context.Background())
+
+	mux := http.NewServeMux()
+	mux.Handle("/connect", sessions)
+	mux.Handle(
+		"/assets/",
+		withCORS(http.StripPrefix("/assets/", http.FileServer(http.FS(assets.Files())))),
+	)
+
+	fmt.Println("Listening on 8082")
+	log.Fatal(http.ListenAndServe(":8082", mux))
 }
 
 func withCORS(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
-
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusNoContent)
+	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Access-Control-Allow-Origin", "*")
+		writer.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		if request.Method == http.MethodOptions {
+			writer.WriteHeader(http.StatusNoContent)
 			return
 		}
-
-		next.ServeHTTP(w, r)
+		next.ServeHTTP(writer, request)
 	})
-}
-
-func main() {
-	engine.InitAssets()
-	go engine.Worlds[0].Run()
-	go packets.PropogateWorldState()
-
-	fmt.Println("Listening on 8082")
-	http.HandleFunc("/connect", connector)
-	http.Handle(
-		"/assets/",
-		withCORS(http.StripPrefix("/assets/", http.FileServer(http.FS(engine.JSONAssets())))),
-	)
-	log.Fatal(http.ListenAndServe(":8082", nil))
 }

@@ -1,4 +1,2 @@
 github.com/gorilla/websocket v1.5.3 h1:saDtZ6Pbx/0u+bgYQ3q96pZgCzfhKXGPqt7kZ72aNNg=
 github.com/gorilla/websocket v1.5.3/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+EU/adAjf1fMHhE=
-github.com/studio-imperium/atlas v1.2.0 h1:fo828aHlXjWO1vnP7VTftzjtxYMDAWpSG7hVcl0Obio=
-github.com/studio-imperium/atlas v1.2.0/go.mod h1:4FP0Q6X7AoDg+0uamHPEgSpM1x0XpDeZt0HnJKLdft4=

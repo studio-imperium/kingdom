@@ -10,7 +10,6 @@ type Modifier func(*Cell)
 
 func (world *World) Infect(biomes []Biome, decay float64) {
 
-	// Get "patient 0"
 	mindist := float64(world.Size)
 	center := newPoint(world.Size/2, world.Size/2)
 	var starting_cell *Cell
@@ -21,7 +20,6 @@ func (world *World) Infect(biomes []Biome, decay float64) {
 		}
 	}
 
-	// Keep track of whom to infect
 	var changedCells []*Cell
 	seen := make(map[*Cell]bool)
 	seen[starting_cell] = true
@@ -29,7 +27,6 @@ func (world *World) Infect(biomes []Biome, decay float64) {
 		starting_cell,
 	}
 
-	// Keep track of biome
 	maxBiome := len(biomes) - 1
 	currentBiome := 0.0
 	convertBiome := func() uint8 {
@@ -39,20 +36,17 @@ func (world *World) Infect(biomes []Biome, decay float64) {
 		return uint8(math.Floor(currentBiome))
 	}
 
-	// Infect
 	for len(queue) > 0 {
 		currentBiome += decay
 		var temp []*Cell
 
 		for _, cell := range queue {
-			// Assign biome to current cell
 			biomeInt8 := convertBiome()
 			if cell.biome <= biomeInt8 {
 				changedCells = append(changedCells, cell)
 				cell.biome = biomeInt8
 			}
 
-			// Infect adjacent cells
 			for _, adj := range cell.GetAdjacentCells() {
 				if !seen[adj] {
 					seen[adj] = true
@@ -64,7 +58,6 @@ func (world *World) Infect(biomes []Biome, decay float64) {
 		queue = temp
 	}
 
-	// Now that biomes are assigned use the biome modifiers on each cell
 	wg := &sync.WaitGroup{}
 	wg.Add(len(changedCells))
 	for _, cell := range changedCells {
@@ -86,8 +79,6 @@ func (world *World) Infect(biomes []Biome, decay float64) {
 	}
 	wg.Wait()
 }
-
-// Modifiers
 
 func NewFill(value uint8) Modifier {
 	return func(cell *Cell) {
@@ -120,7 +111,6 @@ func NewCropCircle(angles float64, values ...uint8) Modifier {
 		tileVal := value / angles
 		tileVal += 1.0
 		tileVal /= 2.0
-		//Now tileval is between 0 and 1
 		tileVal *= valuesLength
 
 		return values[int(math.Max(0, math.Floor(tileVal)))%len(values)]
@@ -158,7 +148,6 @@ func NewPattern(angles float64, values ...uint8) Modifier {
 		tileVal := value / angles
 		tileVal += 1.0
 		tileVal /= 2.0
-		//Now tileval is between 0 and 1
 		tileVal *= valuesLength
 
 		return values[int(math.Max(0, math.Floor(tileVal)))%len(values)]

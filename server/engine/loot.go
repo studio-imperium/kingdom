@@ -1,68 +1,68 @@
 package engine
 
-import (
-	"bytes"
-	"encoding/binary"
-	"math/rand/v2"
-	"time"
-)
+import "math/rand/v2"
 
-type Loot struct {
-	id    uint32
-	loot  uint8
-	x     float32
-	y     float32
-	timer float32
-	Dead  bool
+type loot struct {
+	id       uint32
+	item     uint8
+	ownerID  uint32
+	position Position
+	timer    float32
 }
 
-func (l *Loot) GetX() float32 { return l.x }
-func (l *Loot) GetY() float32 { return l.y }
-
-func CreateLoot(loot uint8, x float32, y float32) *Loot {
-	id := rand.Uint32()
-	x += rand.Float32() + 1
-	y += rand.Float32() + 1
-	return &Loot{
-		id:    id,
-		loot:  loot,
-		x:     x,
-		y:     y,
-		timer: 50,
-		Dead:  false,
+func newLoot(id uint32, item uint8, ownerID uint32, position Position) *loot {
+	position.X += rand.Float32() + 1
+	position.Y += rand.Float32() + 1
+	return &loot{
+		id:       id,
+		item:     item,
+		ownerID:  ownerID,
+		position: position,
+		timer:    50,
 	}
 }
 
-func (loot *Loot) Pack() []byte {
-	data := new(bytes.Buffer)
-
-	data.WriteByte(loot.loot)
-	binary.Write(data, binary.LittleEndian, loot.x)
-	binary.Write(data, binary.LittleEndian, loot.y)
-
-	return data.Bytes()
+func (l *loot) state() LootState {
+	return LootState{
+		ID:   l.id,
+		Item: l.item,
+		X:    l.position.X,
+		Y:    l.position.Y,
+	}
 }
 
-func (character *Character) AddItemOrBust(loot uint8) bool {
-	for i := uint8(0); i < 24; i++ {
-		if _, ok := character.inventory[i]; !ok {
-			character.inventory[i] = loot
-			return true
+func (w *World) tickLoot(seconds float32) []Event {
+	events := make([]Event, 0)
+
+	for lootID, loot := range w.loot {
+		loot.timer -= seconds
+		if loot.timer <= 0 {
+			delete(w.loot, lootID)
+			continue
+		}
+
+		for characterID, character := range w.characters {
+			if character.dead || loot.ownerID != 0 && loot.ownerID != characterID ||
+				distance(character.position, loot.position) >= 1 ||
+				!character.addItem(loot.item) {
+				continue
+			}
+
+			character.apply(w.catalog)
+			delete(w.loot, lootID)
+			events = append(events,
+				Event{
+					Recipients: []uint32{characterID},
+					Message:    CharacterMessage{Character: character.state()},
+				},
+				Event{
+					Recipients: []uint32{characterID},
+					Message:    LootedMessage{LootID: lootID},
+				},
+			)
+			break
 		}
 	}
-	return false
-}
 
-func (loot *Loot) Looted() []byte {
-	data := new(bytes.Buffer)
-
-	data.WriteByte(12)
-	binary.Write(data, binary.LittleEndian, loot.id)
-
-	return data.Bytes()
-}
-
-func (loot *Loot) Tick(delta time.Duration) {
-	secs := float32(delta) / float32(time.Second)
-	loot.timer -= secs
+	return events
 }

@@ -1,51 +1,80 @@
 package engine
 
-import (
-	"bytes"
-	"encoding/binary"
-	"time"
-)
-
-type Bomb struct {
-	id     uint8
-	evil   bool
-	damage float32
-	x      float32
-	y      float32
-	origin *Point
-	timer  float32
-	radius float32
-	Dead   bool
+type bomb struct {
+	id       uint32
+	typeID   uint8
+	ownerID  uint32
+	hostile  bool
+	damage   float32
+	position Position
+	origin   Position
+	timer    float32
 }
 
-func (b Bomb) GetX() float32 { return b.x }
-func (b Bomb) GetY() float32 { return b.y }
-
-func (bomb *Bomb) Pack() []byte {
-	data := new(bytes.Buffer)
-
-	data.WriteByte(bomb.id)
-	binary.Write(data, binary.LittleEndian, bomb.x)
-	binary.Write(data, binary.LittleEndian, bomb.y)
-	binary.Write(data, binary.LittleEndian, bomb.origin.x)
-	binary.Write(data, binary.LittleEndian, bomb.origin.y)
-
-	return data.Bytes()
-}
-
-func (bomb *Bomb) Tick(delta time.Duration) {
-	bomb.timer -= float32(delta) / float32(time.Second)
-}
-
-func DefaultBomb(id uint8, x float32, y float32, origin Object, evil bool, damage float32, timer float32) *Bomb {
-	return &Bomb{
-		id:     id,
-		evil:   evil,
-		damage: damage,
-		x:      x,
-		y:      y,
-		origin: &Point{origin.GetX(), origin.GetY()},
-		timer:  timer,
-		Dead:   false,
+func newBomb(
+	id uint32,
+	typeID uint8,
+	ownerID uint32,
+	position Position,
+	origin Position,
+	hostile bool,
+	damage float32,
+	timer float32,
+) *bomb {
+	return &bomb{
+		id:       id,
+		typeID:   typeID,
+		ownerID:  ownerID,
+		hostile:  hostile,
+		damage:   damage,
+		position: position,
+		origin:   origin,
+		timer:    timer,
 	}
+}
+
+func (b *bomb) state() BombState {
+	return BombState{
+		ID:      b.id,
+		Type:    b.typeID,
+		X:       b.position.X,
+		Y:       b.position.Y,
+		OriginX: b.origin.X,
+		OriginY: b.origin.Y,
+	}
+}
+
+func (w *World) tickBombs(seconds float32) []Event {
+	events := make([]Event, 0)
+
+	for id, bomb := range w.bombs {
+		bomb.timer -= seconds
+		if bomb.timer > 0 {
+			continue
+		}
+
+		data, valid := w.catalog.Bomb(bomb.typeID)
+		if valid {
+			radius := float32(data.Radius)
+			if bomb.hostile {
+				for _, character := range w.characters {
+					if !character.dead &&
+						intersects(bomb.position, radius, character.position, 0.5) {
+						events = append(events, w.damageCharacter(character, bomb.damage)...)
+					}
+				}
+			} else {
+				for _, npc := range w.npcs {
+					npcData, _ := w.catalog.NPC(npc.typeID)
+					if !npc.dead &&
+						intersects(bomb.position, radius, npc.position, npcData.Hitbox) {
+						events = append(events, w.damageNPC(npc, bomb.ownerID, bomb.damage)...)
+					}
+				}
+			}
+		}
+		delete(w.bombs, id)
+	}
+
+	return events
 }

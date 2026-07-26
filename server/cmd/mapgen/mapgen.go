@@ -4,10 +4,10 @@ import (
 	"encoding/binary"
 	"os"
 	"path/filepath"
-	"server/atlas"
+
+	"kingdoms/atlas"
 )
 
-// Tiles
 var WATER uint8 = 1
 var GRASS uint8 = 2
 var WOOD uint8 = 3

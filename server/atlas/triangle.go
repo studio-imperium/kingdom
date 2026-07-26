@@ -58,7 +58,7 @@ func (triangle Triangle) reform(pt Point, pts *[]Point) []Triangle {
 			triangle.points[0],
 		}),
 	}
-	
+
 	for _, triangle := range triangles {
 		if triangle.validDelaunay(pts) {
 			validTriangles = append(validTriangles, triangle)

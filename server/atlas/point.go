@@ -49,5 +49,5 @@ func (p1 Point) divide(p2 Point) Point {
 }
 
 func distance(p1 Point, p2 Point) float64 {
-	return math.Hypot(p1.X - p2.X, p1.Y - p2.Y)
+	return math.Hypot(p1.X-p2.X, p1.Y-p2.Y)
 }

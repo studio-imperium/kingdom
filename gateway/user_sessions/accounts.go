@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"gateway/data"
 )
@@ -14,7 +13,7 @@ type SessionToken [sha256.Size]byte
 
 var ErrInvalidCredentials = errors.New("invalid email or password")
 
-var create_user_query string = `INSERT INTO game.users ("name", email, password, data) VALUES ($1, $2, $3, $4)`
+var create_user_query string = `INSERT INTO game.users ("name", email, password) VALUES ($1, $2, $3)`
 var find_user_query string = "SELECT EXISTS (SELECT 1 FROM game.users WHERE email = $1 AND password = $2)"
 var replace_session_query string = `
 	local old = redis.call('GET', KEYS[1])
@@ -26,9 +25,8 @@ var replace_session_query string = `
 
 func Signup(name, email, password string) (SessionToken, error) {
 	var hashed_password SessionToken = sha256.Sum256([]byte(password))
-	account_data, _ := json.Marshal(DefaultAccountData())
 
-	_, err := data.DB.ExecContext(context.Background(), create_user_query, name, email, hashed_password[:], string(account_data))
+	_, err := data.DB.ExecContext(context.Background(), create_user_query, name, email, hashed_password[:])
 	if err != nil {
 		return SessionToken{}, err
 	}

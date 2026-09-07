@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	db, err := sql.Open("postgres", "host=/var/run/postgresql port=5432")
+	db, err := sql.Open("postgres", "host=/var/run/postgresql port=5432 dbname=kingdoms")
 
 	if err != nil {
 		log.Fatal(err)

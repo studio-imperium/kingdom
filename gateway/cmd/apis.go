@@ -133,3 +133,27 @@ func verify_token(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"valid": true, "email": email})
 }
+
+func player_activity(w http.ResponseWriter, r *http.Request) {
+	token, ok := readToken(w, r)
+	if !ok {
+		return
+	}
+	var input struct {
+		Active *bool `json:"active"`
+	}
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096))
+	if err := decoder.Decode(&input); err != nil || input.Active == nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "active must be a boolean"})
+		return
+	}
+	if err := decoder.Decode(new(any)); err != io.EOF {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "expected one JSON object"})
+		return
+	}
+	if err := gameservers.PlayerActivity(token, *input.Active); err != nil {
+		writeError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}

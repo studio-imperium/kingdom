@@ -7,6 +7,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"gateway/data"
+
+	"github.com/redis/go-redis/v9"
 )
 
 type SessionToken [sha256.Size]byte
@@ -19,7 +21,7 @@ var replace_session_query string = `
 	local old = redis.call('GET', KEYS[1])
 	if old then redis.call('DEL', old) end
 	redis.call('SET', KEYS[1], KEYS[2])
-	redis.call('SET', KEYS[2], ARGV[1])
+	redis.call('HSET', KEYS[2], 'email', ARGV[1], 'active', 'false')
 	return 1
 `
 
@@ -65,5 +67,11 @@ func Logout(token SessionToken) error {
 }
 
 func CheckToken(token SessionToken) (string, error) {
-	return data.Cache.Get(context.Background(), "session:token:"+hex.EncodeToString(token[:])).Result()
+	var key string = "session:token:" + hex.EncodeToString(token[:])
+	email, err := data.Cache.HGet(context.Background(), key, "email").Result()
+	// Older sessions store the email directly instead of using a hash.
+	if redis.HasErrorPrefix(err, "WRONGTYPE") {
+		return data.Cache.Get(context.Background(), key).Result()
+	}
+	return email, err
 }

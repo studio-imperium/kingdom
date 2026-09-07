@@ -1,0 +1,14 @@
+[Unit]
+Description=Kingdom gameserver
+After=gateway.service
+Requires=gateway.service
+
+[Service]
+User=william
+ExecStart=/home/william/daemons/kingdoms/gameserver
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

@@ -12,7 +12,7 @@ type Gameserver struct {
 	connected_players int
 }
 
-var get_gameservers_query string = "SELECT name, address, max_players FROM servers"
+var get_gameservers_query string = "SELECT name, address, max_players FROM architecture.servers"
 
 func GetGameservers(db *sql.DB) {
 	rows, err := db.Query(get_gameservers_query)

@@ -1,0 +1,11 @@
+[Unit]
+Description=Gateway for login/logout/server handling
+After=redis-server.service postgresql.service
+Requires=redis-server.service postgresql.service
+
+[Service]
+User=william
+ExecStart=//home/william/daemons/kingdoms/Gateway
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30

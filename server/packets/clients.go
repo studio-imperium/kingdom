@@ -11,6 +11,8 @@ import (
 )
 
 type Client struct {
+	active_character_id int64
+
 	id              uint32
 	admin           bool
 	username        string

@@ -1,5 +1,7 @@
 package sessions
 
+import "math/rand/v2"
+
 type UserData struct {
 	id    int8
 	name  string
@@ -12,6 +14,7 @@ type AccountData struct {
 	Graveyard  []Character `json:"graveyard"`
 }
 type Character struct {
+	Id        int64           `json:"id"`
 	Hand      uint8           `json:"hand"`
 	Head      uint8           `json:"head"`
 	Body      uint8           `json:"body"`
@@ -27,6 +30,7 @@ func DefaultAccountData() AccountData {
 
 func DefaultCharacter() Character {
 	return Character{
+		Id:   rand.Int64(),
 		Hand: 0,
 		Head: 0,
 		Body: 1,

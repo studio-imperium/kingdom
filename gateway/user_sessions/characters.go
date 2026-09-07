@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"gateway/data"
-	"math/rand/v2"
 )
 
 var ErrNameRequired = errors.New("set an account name before creating a character")
@@ -58,7 +57,7 @@ func NewCharacter(token SessionToken) error {
 	}
 	inventory[24], inventory[25], inventory[26] = character.Head, character.Body, character.Hand
 
-	_, err = tx.ExecContext(ctx, create_character_query, rand.Int64(), name.String, inventory[:])
+	_, err = tx.ExecContext(ctx, create_character_query, character.Id, name.String, inventory[:])
 	if err != nil {
 		return err
 	}

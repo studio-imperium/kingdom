@@ -134,6 +134,34 @@ func verify_token(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"valid": true, "email": email})
 }
 
+func update_player(w http.ResponseWriter, r *http.Request) {
+	token, ok := readToken(w, r)
+	if !ok {
+		return
+	}
+	var character *sessions.Character
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096))
+	if err := decoder.Decode(&character); err != nil || character == nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "expected a character JSON object"})
+		return
+	}
+	if err := decoder.Decode(new(any)); err != io.EOF {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "expected one JSON object"})
+		return
+	}
+	for slot := range character.Inventory {
+		if slot >= 24 {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "inventory slots must be between 0 and 23"})
+			return
+		}
+	}
+	if err := gameservers.UpdateCharacter(token, *character); err != nil {
+		writeError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func player_activity(w http.ResponseWriter, r *http.Request) {
 	token, ok := readToken(w, r)
 	if !ok {

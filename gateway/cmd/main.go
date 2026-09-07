@@ -14,8 +14,9 @@ func createApiSurface() http.Handler {
 	mux.HandleFunc("POST /character/new", create_character)
 
 	mux.HandleFunc("GET /gameservers", get_gameservers)
-	mux.HandleFunc("POST /token/verify", verify_token)
-	mux.HandleFunc("POST /token/active", player_activity)
+	mux.HandleFunc("POST /players/update", update_player)
+	mux.HandleFunc("POST /players/verify", verify_token)
+	mux.HandleFunc("POST /players/active", player_activity)
 	return mux
 }
 

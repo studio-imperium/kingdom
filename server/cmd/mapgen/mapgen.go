@@ -2,25 +2,27 @@ package main
 
 import (
 	"encoding/binary"
+	"io"
 	"os"
 	"path/filepath"
-	"server/atlas"
+
+	"github.com/studio-imperium/atlas"
 )
 
 // Tiles
-var WATER uint8 = 1
-var GRASS uint8 = 2
-var WOOD uint8 = 3
-var STONE uint8 = 4
-var DRYGRASS uint8 = 5
-var SAND uint8 = 6
-var SANDSTONE uint8 = 7
-var COLDGRASS uint8 = 8
-var SNOW uint8 = 9
-var ICE uint8 = 10
-var GRAVEL uint8 = 11
-var RUIN uint8 = 12
-var LAVA uint8 = 13
+const WATER = 1
+const GRASS = 2
+const WOOD = 3
+const STONE = 4
+const DRYGRASS = 5
+const SAND = 6
+const SANDSTONE = 7
+const COLDGRASS = 8
+const SNOW = 9
+const ICE = 10
+const GRAVEL = 11
+const RUIN = 12
+const LAVA = 13
 
 var Beach []atlas.Biome = []atlas.Biome{
 	atlas.NewBiome(
@@ -155,7 +157,7 @@ var DesertOnly = AppendBiomes(Sandy, Sandy2, Sandy3, Beach)
 
 func CreateIsland(size int) *atlas.World {
 	world := atlas.NewWorld(size, 2000, 11)
-	world.Infect(DesertOnly, 1)
+	world.InfectFrom(DesertOnly, 1, atlas.Point{X: float64(size / 2), Y: float64(size / 2)})
 
 	return world
 }
@@ -167,23 +169,40 @@ func main() {
 
 	defer f.Close()
 
+	writeWorld(f, world)
+}
+
+func writeWorld(f io.Writer, world *atlas.World) {
+	cellIndices := make(map[*atlas.Cell]uint16, len(world.Cells))
+	for idx, cell := range world.Cells {
+		cellIndices[cell] = uint16(idx)
+	}
+	type tileData struct {
+		Type    uint8
+		CellIdx uint16
+	}
+	tiles := make([]tileData, world.Size*world.Size)
+
 	cells_len := uint16(len(world.Cells))
 
 	binary.Write(f, binary.LittleEndian, cells_len)
 	for _, cell := range world.Cells {
 		binary.Write(f, binary.LittleEndian, uint16(cell.Origin.X))
 		binary.Write(f, binary.LittleEndian, uint16(cell.Origin.Y))
-		f.Write([]byte{cell.GetBiome()})
+		f.Write([]byte{uint8(cell.GetBiome())})
 
 		adj := cell.GetAdjacentCells()
 		binary.Write(f, binary.LittleEndian, uint8(len(adj)))
 		for _, c := range adj {
-			binary.Write(f, binary.LittleEndian, uint16(c.Idx))
+			binary.Write(f, binary.LittleEndian, cellIndices[c])
+		}
+		for _, tile := range cell.Tiles {
+			tiles[tile.X+tile.Y*world.Size] = tileData{uint8(tile.Value), cellIndices[cell]}
 		}
 	}
 	binary.Write(f, binary.LittleEndian, uint16(world.Size))
 
-	for _, tiledata := range world.Tiles {
+	for _, tiledata := range tiles {
 		binary.Write(f, binary.LittleEndian, tiledata.Type)
 		binary.Write(f, binary.LittleEndian, tiledata.CellIdx)
 	}

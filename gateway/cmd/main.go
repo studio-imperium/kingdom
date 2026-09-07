@@ -22,6 +22,7 @@ func main() {
 		log.Print(err)
 		return
 	}
-	defer data.Close()
+	log.Print("Running on port 8080")
 	log.Print(http.ListenAndServe(":8080", createApiSurface()))
+	data.Close()
 }

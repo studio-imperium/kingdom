@@ -1,33 +1,34 @@
 package gameservers
 
-import (
-	"database/sql"
-	"log"
-)
+import "gateway/data"
 
 type Gameserver struct {
-	name              string
-	address           string
-	max_players       int
-	connected_players int
+	Name       string `json:"name"`
+	Address    string `json:"address"`
+	MaxPlayers int    `json:"max_players"`
 }
 
 var get_gameservers_query string = "SELECT name, address, max_players FROM architecture.servers"
 
-func GetGameservers(db *sql.DB) {
-	rows, err := db.Query(get_gameservers_query)
+func GetGameservers() ([]Gameserver, error) {
+	rows, err := data.DB.Query(get_gameservers_query)
+
+	var res []Gameserver = []Gameserver{}
 
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		gameserver := Gameserver{}
 
-		if err := rows.Scan(&gameserver.name, &gameserver.address, &gameserver.max_players); err != nil {
-			log.Fatal(err)
+		if err := rows.Scan(&gameserver.Name, &gameserver.Address, &gameserver.MaxPlayers); err != nil {
+			return nil, err
 		}
-		log.Printf("name is %s\n", gameserver.name)
+
+		res = append(res, gameserver)
 	}
-	rows.Close()
+
+	return res, rows.Err()
 }

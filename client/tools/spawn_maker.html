@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Spawn Maker</title>
+<link rel="stylesheet" href="/tools/shared/style.css">
+<style>
+  .spawn-grid {
+    grid-template-columns: 380px 1fr;
+    gap: 0;
+  }
+  #left-panel  { grid-column: 1; border-right: 1px solid var(--border); }
+  #preview-host{ grid-column: 2; }
+  .chance-sum.ok { color: var(--good); }
+  .chance-sum.bad { color: var(--kf); }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <h2>Spawn Maker</h2>
+  <label>Collection</label>
+  <select id="collection-select"></select>
+  <button id="collection-new" class="small">+ new</button>
+  <button id="collection-clone" class="small">clone</button>
+  <button id="collection-delete" class="small danger">delete</button>
+  <span style="width:12px"></span>
+  <label>Spawn</label>
+  <select id="spawn-select"></select>
+  <button id="spawn-new" class="small">+ new</button>
+  <button id="spawn-clone" class="small">clone</button>
+  <button id="spawn-delete" class="small danger">delete</button>
+  <span class="spacer"></span>
+  <span class="status" id="status"></span>
+  <button id="save" class="primary">Save</button>
+</div>
+
+<div class="app-grid spawn-grid">
+
+  <div id="left-panel" class="panel">
+    <div class="panel-header">Collection</div>
+    <div class="panel-body" id="collection-host"></div>
+
+    <div class="panel-header">Selected spawn</div>
+    <div class="panel-body" id="stats-host"></div>
+
+    <div class="panel-header">NPCs in this spawn</div>
+    <div class="panel-body" id="npcs-host"></div>
+    <div class="panel-body">
+      <button id="add-npc" class="small">+ npc</button>
+    </div>
+  </div>
+
+  <div id="preview-host">
+    <div class="preview-controls">
+      <button id="zoom-out" class="small">−</button>
+      <span id="zoom-label" class="muted" style="padding:0 6px;align-self:center;font-size:11px">1.0x</span>
+      <button id="zoom-in" class="small">+</button>
+    </div>
+  </div>
+
+</div>
+
+<script src="/tools/shared/api.js"></script>
+<script src="/tools/shared/dropdowns.js"></script>
+<script src="/tools/shared/preview.js"></script>
+<script>
+const LAYER_ORDER = { misc: 0, loot: 1, hand: 2, body: 3, head: 4, bomb: 5 }
+
+let collections = []
+let npcsData = []
+
+let collIdx = 0
+let spawnIdx = 0
+let previewApi = null
+let rebuildTimer = null
+
+const collectionHost = document.getElementById("collection-host")
+const statsHost = document.getElementById("stats-host")
+const npcsHost = document.getElementById("npcs-host")
+const collectionSelect = document.getElementById("collection-select")
+const spawnSelect = document.getElementById("spawn-select")
+const status = document.getElementById("status")
+
+async function init() {
+  ;[collections, npcsData] = await Promise.all([
+    loadAsset("spawns.json"),
+    loadAsset("npcs.json"),
+  ])
+  previewApi = await makePreview(document.getElementById("preview-host"), { zoom: 1.2 })
+  updateZoomLabel()
+  refillCollectionSelect()
+  loadCollection(0)
+}
+
+function currentCollection() {
+  return collections[collIdx]
+}
+function currentSpawns() {
+  return currentCollection()?.spawns || []
+}
+function currentSpawn() {
+  return currentSpawns()[spawnIdx]
+}
+
+function refillCollectionSelect() {
+  collectionSelect.innerHTML = ""
+  for (let i = 0; i < collections.length; i++) {
+    const o = document.createElement("option")
+    o.value = String(i)
+    o.textContent = `[${i}] ${collections[i].display || "(unnamed)"}`
+    collectionSelect.appendChild(o)
+  }
+  collectionSelect.value = String(collIdx)
+}
+
+function refillSpawnSelect() {
+  spawnSelect.innerHTML = ""
+  const list = currentSpawns()
+  for (let i = 0; i < list.length; i++) {
+    const o = document.createElement("option")
+    o.value = String(i)
+    o.textContent = `${list[i].display || `spawn ${i}`} (chance ${list[i].chance ?? 0})`
+    spawnSelect.appendChild(o)
+  }
+  spawnSelect.value = String(spawnIdx)
+}
+
+function loadCollection(idx) {
+  if (idx < 0 || idx >= collections.length) return
+  collIdx = idx
+  if (!currentCollection().spawns) currentCollection().spawns = []
+  spawnIdx = 0
+  refillSpawnSelect()
+  renderCollection()
+  loadSpawn(0)
+}
+
+function loadSpawn(idx) {
+  spawnIdx = Math.min(Math.max(0, idx), Math.max(0, currentSpawns().length - 1))
+  renderCollection()
+  renderStats()
+  renderNpcs()
+  rebuildPreview()
+}
+
+function renderCollection() {
+  collectionHost.innerHTML = ""
+  const c = currentCollection()
+  if (!c) return
+
+  collectionHost.appendChild(textField("display", c.display, (v) => {
+    c.display = v; refillCollectionSelect()
+  }))
+
+  const sum = (c.spawns || []).reduce((acc, s) => acc + (s.chance || 0), 0)
+  const sumRow = document.createElement("div")
+  sumRow.className = "row"
+  const sumLabel = document.createElement("label")
+  sumLabel.textContent = "chance sum"
+  sumLabel.style.width = "90px"
+  sumLabel.style.textAlign = "right"
+  const sumVal = document.createElement("span")
+  sumVal.textContent = sum.toFixed(2)
+  sumVal.className = "chance-sum " + (Math.abs(sum - 1) < 0.001 ? "ok" : "bad")
+  sumRow.appendChild(sumLabel); sumRow.appendChild(sumVal)
+  if (Math.abs(sum - 1) >= 0.001) {
+    const hint = document.createElement("span")
+    hint.className = "muted"
+    hint.style.fontSize = "11px"
+    hint.style.marginLeft = "6px"
+    hint.textContent = "(should sum to 1 for guaranteed spawn)"
+    sumRow.appendChild(hint)
+  }
+  collectionHost.appendChild(sumRow)
+
+  const note = document.createElement("div")
+  note.className = "muted"
+  note.style.fontSize = "11px"
+  note.textContent = `assets.go biome → collection index (e.g. forest tiles → ${collIdx === 1 ? "this" : "collection 1"}, beach → ${collIdx === 0 ? "this" : "collection 0"})`
+  collectionHost.appendChild(note)
+}
+
+function renderStats() {
+  statsHost.innerHTML = ""
+  const s = currentSpawn()
+  if (!s) {
+    statsHost.innerHTML = '<div class="muted">No spawn in this collection. Click "+ new".</div>'
+    return
+  }
+  statsHost.appendChild(textField("display", s.display, (v) => {
+    s.display = v; refillSpawnSelect()
+  }))
+  statsHost.appendChild(numField("chance", s.chance, (v) => {
+    s.chance = v ?? 0; refillSpawnSelect(); renderCollection()
+  }, 0.05))
+}
+
+function renderNpcs() {
+  npcsHost.innerHTML = ""
+  const s = currentSpawn()
+  if (!s) return
+  if (!s.npcs) s.npcs = []
+  for (let i = 0; i < s.npcs.length; i++) {
+    npcsHost.appendChild(renderNpcRow(s.npcs[i], i))
+  }
+}
+
+function renderNpcRow(entry, i) {
+  const row = document.createElement("div"); row.className = "row"
+
+  const sel = document.createElement("select")
+  fillSelect(sel, npcsData, { labelFor: (n) => n.display || `npc ${n.id}` })
+  sel.value = String(entry.id)
+  sel.style.flex = "1"
+  sel.addEventListener("change", () => {
+    entry.id = Number(sel.value); scheduleRebuild()
+  })
+  row.appendChild(sel)
+
+  const xInp = document.createElement("input")
+  xInp.type = "number"; xInp.step = 0.5; xInp.style.width = "55px"
+  xInp.value = entry.x ?? 0; xInp.title = "x offset (tiles)"
+  xInp.addEventListener("input", () => {
+    entry.x = Number(xInp.value) || 0; scheduleRebuild()
+  })
+  row.appendChild(xInp)
+
+  const yInp = document.createElement("input")
+  yInp.type = "number"; yInp.step = 0.5; yInp.style.width = "55px"
+  yInp.value = entry.y ?? 0; yInp.title = "y offset (tiles)"
+  yInp.addEventListener("input", () => {
+    entry.y = Number(yInp.value) || 0; scheduleRebuild()
+  })
+  row.appendChild(yInp)
+
+  const del = document.createElement("button")
+  del.className = "small danger"; del.textContent = "x"
+  del.addEventListener("click", () => {
+    currentSpawn().npcs.splice(i, 1)
+    renderNpcs(); scheduleRebuild()
+  })
+  row.appendChild(del)
+
+  return row
+}
+
+function rebuildPreview() {
+  if (!previewApi) return
+  previewApi.clear()
+  const s = currentSpawn()
+  if (!s) return
+
+  for (const entry of s.npcs || []) {
+    const npc = npcsData.find((n) => n.id === entry.id)
+    if (!npc || !npc.body) continue
+    const sorted = npc.body.slice().sort((a, b) =>
+      (LAYER_ORDER[a.label] ?? -1) - (LAYER_ORDER[b.label] ?? -1)
+    )
+    const c = new PIXI.Container()
+    c.x = (entry.x || 0) * 64
+    c.y = (entry.y || 0) * 64
+    for (const part of sorted) {
+      c.addChild(buildObject(part))
+    }
+    previewApi.add(c)
+
+    if (npc.hitbox) {
+      const hb = makeHitboxCircle(npc.hitbox, 0xff4444, 0.12)
+      hb.x = c.x; hb.y = c.y
+      previewApi.add(hb)
+    }
+  }
+}
+
+function scheduleRebuild() {
+  clearTimeout(rebuildTimer)
+  rebuildTimer = setTimeout(rebuildPreview, 50)
+}
+
+function numField(label, value, onChange, step = 0.5) {
+  const row = document.createElement("div"); row.className = "row"
+  const lab = document.createElement("label")
+  lab.textContent = label; lab.style.width = "90px"; lab.style.textAlign = "right"
+  const inp = document.createElement("input")
+  inp.type = "number"; inp.step = step
+  inp.value = value !== undefined ? value : ""
+  inp.addEventListener("input", () => {
+    const v = inp.value === "" ? undefined : Number(inp.value)
+    onChange(v)
+  })
+  row.appendChild(lab); row.appendChild(inp)
+  return row
+}
+function textField(label, value, onChange) {
+  const row = document.createElement("div"); row.className = "row"
+  const lab = document.createElement("label")
+  lab.textContent = label; lab.style.width = "90px"; lab.style.textAlign = "right"
+  const inp = document.createElement("input")
+  inp.type = "text"
+  inp.value = value !== undefined ? value : ""
+  inp.style.flex = "1"
+  inp.addEventListener("input", () => onChange(inp.value))
+  row.appendChild(lab); row.appendChild(inp)
+  return row
+}
+
+collectionSelect.addEventListener("change", () => loadCollection(Number(collectionSelect.value)))
+spawnSelect.addEventListener("change", () => loadSpawn(Number(spawnSelect.value)))
+
+document.getElementById("collection-new").addEventListener("click", () => {
+  collections.push({ display: `Collection ${collections.length}`, spawns: [] })
+  collIdx = collections.length - 1
+  refillCollectionSelect()
+  loadCollection(collIdx)
+})
+
+document.getElementById("collection-clone").addEventListener("click", () => {
+  const src = currentCollection()
+  if (!src) return
+  const copy = JSON.parse(JSON.stringify(src))
+  copy.display = (src.display || "Collection") + " Copy"
+  collections.splice(collIdx + 1, 0, copy)
+  collIdx = collIdx + 1
+  refillCollectionSelect()
+  loadCollection(collIdx)
+})
+
+document.getElementById("collection-delete").addEventListener("click", () => {
+  if (collections.length <= 1) return
+  if (!confirm(`Delete collection "${currentCollection().display}"? Indexes after it will shift, which breaks the biome map in assets.go.`)) return
+  collections.splice(collIdx, 1)
+  collIdx = Math.max(0, collIdx - 1)
+  refillCollectionSelect()
+  loadCollection(collIdx)
+})
+
+document.getElementById("spawn-new").addEventListener("click", () => {
+  const list = currentSpawns()
+  list.push({ display: `spawn ${list.length}`, chance: 0.1, npcs: [] })
+  spawnIdx = list.length - 1
+  refillSpawnSelect(); loadSpawn(spawnIdx)
+})
+
+document.getElementById("spawn-clone").addEventListener("click", () => {
+  const src = currentSpawn()
+  if (!src) return
+  const copy = JSON.parse(JSON.stringify(src))
+  copy.display = (src.display || "spawn") + " Copy"
+  currentSpawns().splice(spawnIdx + 1, 0, copy)
+  spawnIdx = spawnIdx + 1
+  refillSpawnSelect(); loadSpawn(spawnIdx)
+})
+
+document.getElementById("spawn-delete").addEventListener("click", () => {
+  const list = currentSpawns()
+  if (list.length === 0) return
+  if (!confirm(`Delete "${currentSpawn().display}"?`)) return
+  list.splice(spawnIdx, 1)
+  spawnIdx = Math.max(0, spawnIdx - 1)
+  refillSpawnSelect(); loadSpawn(spawnIdx)
+})
+
+document.getElementById("add-npc").addEventListener("click", () => {
+  const s = currentSpawn()
+  if (!s) return
+  s.npcs = s.npcs || []
+  s.npcs.push({ id: npcsData[0]?.id ?? 0, x: 0, y: 0 })
+  renderNpcs(); scheduleRebuild()
+})
+
+document.getElementById("zoom-in").addEventListener("click", () => {
+  previewApi.setZoom(previewApi.getZoom() * 1.25); updateZoomLabel()
+})
+document.getElementById("zoom-out").addEventListener("click", () => {
+  previewApi.setZoom(previewApi.getZoom() / 1.25); updateZoomLabel()
+})
+function updateZoomLabel() {
+  document.getElementById("zoom-label").textContent = previewApi.getZoom().toFixed(2) + "x"
+}
+
+attachSaveButton(
+  document.getElementById("save"),
+  status,
+  "spawns.json",
+  () => collections,
+)
+
+init().catch((e) => {
+  status.textContent = "Init error: " + e.message
+  status.style.color = "var(--danger)"
+  console.error(e)
+})
+</script>
+</body>
+</html>

@@ -1,7 +1,7 @@
-const addr = "server.kingdomcrushers.io"
-const prefixs = ["wss", "https"]
-// const addr = "localhost:8082"
-// const prefixs = ["ws", "http"]
+// const addr = "server.kingdomcrushers.io"
+// const prefixs = ["wss", "https"]
+const addr = "localhost:8082"
+const prefixs = ["ws", "http"]
 let CONNECTED = false
 let socket
 let token

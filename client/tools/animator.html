@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Animator</title>
+<link rel="stylesheet" href="/tools/shared/style.css">
+<style>
+  .animator-grid {
+    grid-template-columns: 1fr 320px;
+    grid-template-rows: 1fr 110px;
+    gap: 0;
+  }
+  #preview-host { grid-row: 1; grid-column: 1; }
+  #side-panel { grid-row: 1 / span 2; grid-column: 2; border-left: 1px solid var(--border); }
+  #timeline { grid-row: 2; grid-column: 1; }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <h2>Animator</h2>
+  <label>Animation</label>
+  <select id="anim-select"></select>
+  <button id="anim-new" class="small">+ new</button>
+  <button id="anim-clone" class="small">clone</button>
+  <button id="anim-delete" class="small danger">delete</button>
+  <span style="width:16px"></span>
+  <label>Helmet</label><select id="equip-head"></select>
+  <label>Armor</label><select id="equip-body"></select>
+  <label>Weapon</label><select id="equip-hand"></select>
+  <span class="spacer"></span>
+  <span class="status" id="status"></span>
+  <button id="save" class="primary">Save</button>
+</div>
+
+<div class="app-grid animator-grid">
+  <div id="preview-host">
+    <div class="preview-controls">
+      <button id="zoom-out" class="small">−</button>
+      <span id="zoom-label" class="muted" style="padding:0 6px;align-self:center;font-size:11px">1.0x</span>
+      <button id="zoom-in" class="small">+</button>
+    </div>
+  </div>
+
+  <div id="side-panel" class="panel">
+    <div class="panel-header">Animation</div>
+    <div class="panel-body">
+      <div class="row">
+        <label>Display</label>
+        <input type="text" id="anim-display" style="flex:1">
+      </div>
+      <div class="row">
+        <label>ID</label>
+        <input type="number" id="anim-id" disabled>
+      </div>
+      <hr>
+
+      <div class="row">
+        <button id="play" class="small">▶ Play</button>
+        <button id="stop" class="small">■ Stop</button>
+        <label>Duration (s)</label>
+        <input type="number" id="duration" value="0.6" step="0.05" style="width:60px">
+        <label><input type="checkbox" id="loop"> loop</label>
+      </div>
+    </div>
+
+    <div class="panel-header">Selected Keyframe</div>
+    <div class="panel-body kf-props" id="kf-props">
+      <div class="muted">Click a keyframe (or empty timeline space to add).</div>
+    </div>
+  </div>
+
+  <div id="timeline">
+    <span class="label-left">0.0</span>
+    <div class="ticks" id="ticks"></div>
+    <div class="track"></div>
+    <span class="label-right">1.0</span>
+    <div class="playhead" id="playhead" style="left:60px"></div>
+  </div>
+</div>
+
+<script src="/tools/shared/api.js"></script>
+<script src="/tools/shared/dropdowns.js"></script>
+<script src="/tools/shared/preview.js"></script>
+<script>
+const KF_FIELDS = [
+  "time",
+  "head_angle",
+  "body_angle",
+  "hand_angle",
+  "hand_x",
+  "hand_y",
+  "hand_scale",
+  "object_scale",
+]
+
+let items = []
+let animations = []
+
+let currentAnimIdx = 0
+let selectedKfIdx = 0
+
+let previewApi = null
+let charContainer = null
+let charHead = null
+let charBody = null
+let charHand = null
+
+let playing = false
+let playTime = 0
+let lastFrameTime = 0
+
+const animSelect = document.getElementById("anim-select")
+const equipHead = document.getElementById("equip-head")
+const equipBody = document.getElementById("equip-body")
+const equipHand = document.getElementById("equip-hand")
+const status = document.getElementById("status")
+const animDisplayInp = document.getElementById("anim-display")
+const animIdInp = document.getElementById("anim-id")
+const playhead = document.getElementById("playhead")
+const ticks = document.getElementById("ticks")
+const timeline = document.getElementById("timeline")
+const kfPropsHost = document.getElementById("kf-props")
+const durationInp = document.getElementById("duration")
+const loopChk = document.getElementById("loop")
+
+function reindexAnimations() {
+  for (let i = 0; i < animations.length; i++) animations[i].id = i
+}
+
+async function init() {
+  ;[items, animations] = await Promise.all([
+    loadAsset("items.json"),
+    loadAsset("animations.json"),
+  ])
+  reindexAnimations()
+
+  previewApi = await makePreview(document.getElementById("preview-host"), { zoom: 1.5 })
+  updateZoomLabel()
+
+  fillSelect(equipHead, items, { filter: (i) => i.type === "head" })
+  fillSelect(equipBody, items, { filter: (i) => i.type === "body" })
+  fillSelect(equipHand, items, { filter: (i) => i.type === "hand", includeNone: true, noneLabel: "(no weapon)", noneValue: -1 })
+  equipHead.value = "0"
+  equipBody.value = "1"
+  equipHand.value = "8"
+
+  refillAnimSelect()
+  loadAnim(0)
+  rebuildPreview()
+  startLoop()
+}
+
+function refillAnimSelect() {
+  fillSelect(animSelect, animations, { labelFor: (a) => a.display || `anim ${a.id}` })
+  animSelect.value = String(animations[currentAnimIdx]?.id ?? 0)
+}
+
+function findAnimIdx(id) {
+  const n = Number(id)
+  return animations.findIndex((a) => a.id === n)
+}
+
+function loadAnim(idx) {
+  if (idx < 0 || idx >= animations.length) return
+  currentAnimIdx = idx
+  const a = animations[idx]
+  animDisplayInp.value = a.display || ""
+  animIdInp.value = a.id
+  selectedKfIdx = 0
+  playTime = 0
+  renderTimeline()
+  renderKfProps()
+}
+
+function currentAnim() {
+  return animations[currentAnimIdx]
+}
+
+function rebuildPreview() {
+  if (!previewApi) return
+  previewApi.clear()
+  const headId = Number(equipHead.value)
+  const bodyId = Number(equipBody.value)
+  const handVal = Number(equipHand.value)
+  const head = items.find((i) => i.id === headId)
+  const body = items.find((i) => i.id === bodyId)
+  const hand = handVal >= 0 ? items.find((i) => i.id === handVal) : null
+  charContainer = buildCharacter(hand, head, body)
+  charHead = charContainer.children.find((c) => c.label === "head")
+  charBody = charContainer.children.find((c) => c.label === "body")
+  charHand = charContainer.children.find((c) => c.label === "hand")
+  previewApi.add(charContainer)
+  applyAtTime(playTime)
+}
+
+function lerp(a, b, t) { return a + (b - a) * t }
+
+function evalAnim(t) {
+  const a = currentAnim()
+  if (!a || !a.frames || a.frames.length === 0) return null
+  const frames = a.frames
+  let f1 = frames[0], f2 = null
+  for (let i = 0; i < frames.length; i++) {
+    const f = frames[i]
+    if (f.time <= t) f1 = f
+    else { f2 = f; break }
+  }
+  if (!f2) return { ...f1 }
+  const diff = f2.time - f1.time
+  const tt = diff > 0 ? (t - f1.time) / diff : 1
+  const out = {}
+  for (const k of KF_FIELDS) {
+    if (k === "time") continue
+    if (f1[k] !== undefined && f2[k] !== undefined) out[k] = lerp(f1[k], f2[k], tt)
+    else if (f1[k] !== undefined) out[k] = f1[k]
+    else if (f2[k] !== undefined) out[k] = f2[k]
+  }
+  return out
+}
+
+function applyAtTime(t) {
+  const f = evalAnim(t)
+  if (!f || !charContainer) return
+  if (charHead && f.head_angle !== undefined) charHead.angle = f.head_angle
+  if (charBody && f.body_angle !== undefined) charBody.angle = f.body_angle
+  if (charHand) {
+    if (f.hand_angle !== undefined) charHand.angle = f.hand_angle
+    if (f.hand_x !== undefined) charHand.x = f.hand_x
+    if (f.hand_y !== undefined) charHand.y = f.hand_y
+    if (f.hand_scale !== undefined) charHand.scale.set(f.hand_scale)
+  }
+  if (f.object_scale !== undefined) {
+    charContainer.scale.set(f.object_scale / 64)
+  }
+}
+
+function renderTimeline() {
+  // remove old keyframe dots and tick labels
+  for (const el of timeline.querySelectorAll(".keyframe")) el.remove()
+  ticks.innerHTML = ""
+  for (let i = 0; i <= 10; i++) {
+    const sp = document.createElement("span")
+    sp.style.position = "absolute"
+    sp.style.left = (i * 10) + "%"
+    sp.style.transform = "translateX(-50%)"
+    sp.textContent = (i / 10).toFixed(1)
+    ticks.appendChild(sp)
+  }
+
+  const a = currentAnim()
+  if (!a) return
+  const trackRect = timeline.querySelector(".track").getBoundingClientRect()
+  const tlRect = timeline.getBoundingClientRect()
+  const left = trackRect.left - tlRect.left
+  const width = trackRect.width
+
+  for (let i = 0; i < a.frames.length; i++) {
+    const f = a.frames[i]
+    const k = document.createElement("div")
+    k.className = "keyframe" + (i === selectedKfIdx ? " selected" : "")
+    k.style.left = (left + width * f.time) + "px"
+    k.addEventListener("mousedown", (e) => {
+      e.preventDefault()
+      selectedKfIdx = i
+      renderTimeline()
+      renderKfProps()
+      const move = (ev) => {
+        const x = ev.clientX - tlRect.left - left
+        let t = Math.max(0, Math.min(1, x / width))
+        t = Math.round(t * 100) / 100
+        a.frames[i].time = t
+        // do not sort during drag (we'd lose track of selection)
+        k.style.left = (left + width * t) + "px"
+        applyAtTime(playTime)
+      }
+      const up = () => {
+        document.removeEventListener("mousemove", move)
+        document.removeEventListener("mouseup", up)
+        // sort and re-find selected
+        const selF = a.frames[selectedKfIdx]
+        a.frames.sort((x, y) => x.time - y.time)
+        selectedKfIdx = a.frames.indexOf(selF)
+        renderTimeline()
+        renderKfProps()
+      }
+      document.addEventListener("mousemove", move)
+      document.addEventListener("mouseup", up)
+    })
+    k.addEventListener("contextmenu", (e) => {
+      e.preventDefault()
+      if (a.frames.length <= 1) return
+      a.frames.splice(i, 1)
+      selectedKfIdx = Math.max(0, Math.min(selectedKfIdx, a.frames.length - 1))
+      renderTimeline()
+      renderKfProps()
+    })
+    timeline.appendChild(k)
+  }
+  updatePlayhead()
+}
+
+function updatePlayhead() {
+  const trackRect = timeline.querySelector(".track").getBoundingClientRect()
+  const tlRect = timeline.getBoundingClientRect()
+  const left = trackRect.left - tlRect.left
+  const width = trackRect.width
+  playhead.style.left = (left + width * playTime) + "px"
+}
+
+timeline.addEventListener("dblclick", (e) => {
+  if (e.target.classList.contains("keyframe")) return
+  const a = currentAnim()
+  if (!a) return
+  const trackRect = timeline.querySelector(".track").getBoundingClientRect()
+  const tlRect = timeline.getBoundingClientRect()
+  const left = trackRect.left - tlRect.left
+  const width = trackRect.width
+  const x = e.clientX - tlRect.left - left
+  let t = Math.max(0, Math.min(1, x / width))
+  t = Math.round(t * 100) / 100
+  const seeded = evalAnim(t) || {}
+  const kf = { time: t, ...seeded }
+  a.frames.push(kf)
+  a.frames.sort((x, y) => x.time - y.time)
+  selectedKfIdx = a.frames.indexOf(kf)
+  renderTimeline()
+  renderKfProps()
+})
+
+function renderKfProps() {
+  kfPropsHost.innerHTML = ""
+  const a = currentAnim()
+  if (!a) return
+  const kf = a.frames[selectedKfIdx]
+  if (!kf) {
+    kfPropsHost.innerHTML = '<div class="muted">No keyframe selected.</div>'
+    return
+  }
+  const grid = document.createElement("div")
+  grid.className = "field-grid"
+  for (const field of KF_FIELDS) {
+    const lbl = document.createElement("label")
+    lbl.textContent = field
+    grid.appendChild(lbl)
+
+    const inp = document.createElement("input")
+    inp.type = "number"
+    inp.step = field === "time" ? 0.01 : 0.5
+    if (field === "time") {
+      inp.min = 0; inp.max = 1
+    }
+    inp.value = kf[field] !== undefined ? kf[field] : ""
+    inp.placeholder = field === "time" ? "" : "(unset)"
+    inp.addEventListener("input", () => {
+      const v = inp.value === "" ? undefined : Number(inp.value)
+      if (field === "time") {
+        kf.time = Math.max(0, Math.min(1, v ?? 0))
+        a.frames.sort((x, y) => x.time - y.time)
+        selectedKfIdx = a.frames.indexOf(kf)
+        renderTimeline()
+      } else {
+        if (v === undefined) delete kf[field]
+        else kf[field] = v
+      }
+      applyAtTime(playTime)
+    })
+    grid.appendChild(inp)
+  }
+  kfPropsHost.appendChild(grid)
+
+  const actions = document.createElement("div")
+  actions.className = "row"
+  actions.style.marginTop = "8px"
+  const del = document.createElement("button")
+  del.className = "small danger"
+  del.textContent = "delete keyframe"
+  del.disabled = a.frames.length <= 1
+  del.addEventListener("click", () => {
+    a.frames.splice(selectedKfIdx, 1)
+    selectedKfIdx = Math.max(0, Math.min(selectedKfIdx, a.frames.length - 1))
+    renderTimeline(); renderKfProps()
+  })
+  actions.appendChild(del)
+  kfPropsHost.appendChild(actions)
+}
+
+function startLoop() {
+  lastFrameTime = performance.now()
+  function frame(now) {
+    const dt = (now - lastFrameTime) / 1000
+    lastFrameTime = now
+    if (playing) {
+      const dur = Math.max(0.01, Number(durationInp.value) || 1)
+      playTime += dt / dur
+      if (playTime >= 1) {
+        if (loopChk.checked) {
+          playTime = playTime % 1
+        } else {
+          playTime = 1
+          playing = false
+          document.getElementById("play").textContent = "▶ Play"
+        }
+      }
+      applyAtTime(playTime)
+      updatePlayhead()
+    }
+    requestAnimationFrame(frame)
+  }
+  requestAnimationFrame(frame)
+}
+
+animSelect.addEventListener("change", () => {
+  const idx = findAnimIdx(animSelect.value)
+  if (idx >= 0) loadAnim(idx)
+})
+
+equipHead.addEventListener("change", rebuildPreview)
+equipBody.addEventListener("change", rebuildPreview)
+equipHand.addEventListener("change", rebuildPreview)
+
+animDisplayInp.addEventListener("input", () => {
+  const a = currentAnim()
+  if (a) { a.display = animDisplayInp.value; refillAnimSelect() }
+})
+
+document.getElementById("anim-new").addEventListener("click", () => {
+  const id = animations.length
+  const a = { id, display: `Animation ${id}`, frames: [{ time: 0 }, { time: 1 }] }
+  animations.push(a)
+  reindexAnimations()
+  currentAnimIdx = animations.length - 1
+  refillAnimSelect()
+  animSelect.value = String(id)
+  loadAnim(currentAnimIdx)
+})
+
+document.getElementById("anim-clone").addEventListener("click", () => {
+  const src = currentAnim()
+  if (!src) return
+  const copy = JSON.parse(JSON.stringify(src))
+  copy.display = (src.display || "Animation") + " Copy"
+  animations.splice(currentAnimIdx + 1, 0, copy)
+  reindexAnimations()
+  currentAnimIdx = currentAnimIdx + 1
+  refillAnimSelect()
+  animSelect.value = String(copy.id)
+  loadAnim(currentAnimIdx)
+})
+
+document.getElementById("anim-delete").addEventListener("click", () => {
+  if (animations.length <= 1) return
+  if (!confirm(`Delete "${currentAnim().display}"?`)) return
+  animations.splice(currentAnimIdx, 1)
+  reindexAnimations()
+  currentAnimIdx = Math.max(0, currentAnimIdx - 1)
+  refillAnimSelect()
+  loadAnim(currentAnimIdx)
+})
+
+document.getElementById("play").addEventListener("click", (e) => {
+  playing = !playing
+  if (playing && playTime >= 1) playTime = 0
+  e.target.textContent = playing ? "❚❚ Pause" : "▶ Play"
+})
+
+document.getElementById("stop").addEventListener("click", () => {
+  playing = false
+  playTime = 0
+  document.getElementById("play").textContent = "▶ Play"
+  applyAtTime(0)
+  updatePlayhead()
+})
+
+document.getElementById("zoom-in").addEventListener("click", () => {
+  previewApi.setZoom(previewApi.getZoom() * 1.25)
+  updateZoomLabel()
+})
+document.getElementById("zoom-out").addEventListener("click", () => {
+  previewApi.setZoom(previewApi.getZoom() / 1.25)
+  updateZoomLabel()
+})
+function updateZoomLabel() {
+  document.getElementById("zoom-label").textContent = previewApi.getZoom().toFixed(2) + "x"
+}
+
+attachSaveButton(
+  document.getElementById("save"),
+  status,
+  "animations.json",
+  () => {
+    reindexAnimations()
+    for (const a of animations) {
+      a.frames.sort((x, y) => x.time - y.time)
+      if (a.frames.length === 0 || a.frames[0].time !== 0) {
+        a.frames.unshift({ time: 0 })
+      }
+    }
+    return animations
+  },
+)
+
+init().catch((e) => {
+  status.textContent = "Init error: " + e.message
+  status.style.color = "var(--danger)"
+  console.error(e)
+})
+</script>
+</body>
+</html>

@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>NPC Maker</title>
+<link rel="stylesheet" href="/tools/shared/style.css">
+<style>
+  .npc-grid {
+    grid-template-columns: 360px 1fr 340px;
+    gap: 0;
+  }
+  #left-panel  { grid-column: 1; border-right: 1px solid var(--border); }
+  #preview-host{ grid-column: 2; }
+  #right-panel { grid-column: 3; border-left: 1px solid var(--border); display: flex; flex-direction: column; }
+  #obj-tree { flex: 1; overflow: auto; padding: 8px; }
+  #obj-inspector { border-top: 1px solid var(--border); padding: 8px; max-height: 50%; overflow: auto; }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <h2>NPC Maker</h2>
+  <label>NPC</label>
+  <select id="npc-select"></select>
+  <button id="npc-new" class="small">+ new</button>
+  <button id="npc-clone" class="small">clone</button>
+  <button id="npc-delete" class="small danger">delete</button>
+  <span class="spacer"></span>
+  <span class="status" id="status"></span>
+  <button id="save" class="primary">Save</button>
+</div>
+
+<div class="app-grid npc-grid">
+
+  <div id="left-panel" class="panel">
+    <div class="panel-header">Stats</div>
+    <div class="panel-body" id="stats-host"></div>
+
+    <div class="panel-header">Modes</div>
+    <div class="panel-body" id="modes-host"></div>
+    <div class="panel-body">
+      <button id="add-mode" class="small">+ mode</button>
+    </div>
+  </div>
+
+  <div id="preview-host">
+    <div class="preview-controls">
+      <button id="zoom-out" class="small">−</button>
+      <span id="zoom-label" class="muted" style="padding:0 6px;align-self:center;font-size:11px">1.0x</span>
+      <button id="zoom-in" class="small">+</button>
+    </div>
+  </div>
+
+  <div id="right-panel" class="panel">
+    <div class="panel-header">Body</div>
+    <div id="obj-tree" class="tree"></div>
+    <div id="obj-inspector"></div>
+  </div>
+
+</div>
+
+<script src="/tools/shared/api.js"></script>
+<script src="/tools/shared/dropdowns.js"></script>
+<script src="/tools/shared/preview.js"></script>
+<script src="/tools/shared/object_editor.js"></script>
+<script>
+const MOVEMENTS = ["wander", "chase", "run", "overshoot", "hover", "turret"]
+
+let npcs = []
+let animations = []
+let projectiles = []
+let bombs = []
+let loot = []
+let items = []
+
+let currentNpcIdx = 0
+
+function reindexNpcs() {
+  for (let i = 0; i < npcs.length; i++) npcs[i].id = i
+}
+let previewApi = null
+let rebuildTimer = null
+let objEditorBody = null
+let bodyEditTargetIdx = 0
+
+const statsHost = document.getElementById("stats-host")
+const modesHost = document.getElementById("modes-host")
+const npcSelect = document.getElementById("npc-select")
+const status = document.getElementById("status")
+
+async function init() {
+  ;[npcs, animations, projectiles, bombs, loot, items] = await Promise.all([
+    loadAsset("npcs.json"),
+    loadAsset("animations.json"),
+    loadAsset("projectiles.json"),
+    loadAsset("bombs.json"),
+    loadAsset("loot.json"),
+    loadAsset("items.json"),
+  ])
+  reindexNpcs()
+
+  previewApi = await makePreview(document.getElementById("preview-host"), { zoom: 1.5 })
+  updateZoomLabel()
+
+  objEditorBody = createObjectEditor(
+    document.getElementById("obj-tree"),
+    document.getElementById("obj-inspector"),
+  )
+  objEditorBody.onChange(() => {
+    const npc = currentNpc()
+    if (npc) npc.body[bodyEditTargetIdx] = objEditorBody.getRoot()
+    scheduleRebuild()
+  })
+
+  refillNpcSelect()
+  loadNpc(0)
+}
+
+function refillNpcSelect() {
+  fillSelect(npcSelect, npcs)
+  npcSelect.value = String(npcs[currentNpcIdx]?.id ?? 0)
+}
+
+function currentNpc() {
+  return npcs[currentNpcIdx]
+}
+
+function loadNpc(idx) {
+  if (idx < 0 || idx >= npcs.length) return
+  currentNpcIdx = idx
+  bodyEditTargetIdx = 0
+  renderStats()
+  renderModes()
+  renderBodyTabs()
+  rebuildPreview()
+}
+
+const LAYER_ORDER = { misc: 0, loot: 1, hand: 2, body: 3, head: 4, bomb: 5 }
+
+function rebuildPreview() {
+  if (!previewApi) return
+  previewApi.clear()
+  const npc = currentNpc()
+  if (!npc) return
+  const c = new PIXI.Container()
+  const sorted = (npc.body || []).slice().sort((a, b) => {
+    const ai = LAYER_ORDER[a.label] ?? -1
+    const bi = LAYER_ORDER[b.label] ?? -1
+    return ai - bi
+  })
+  for (const part of sorted) {
+    c.addChild(buildObject(part))
+  }
+  if (npc.hitbox) {
+    const hb = makeHitboxCircle(npc.hitbox)
+    hb.zIndex = 1000
+    previewApi.add(hb)
+  }
+  previewApi.add(c)
+}
+
+function scheduleRebuild() {
+  clearTimeout(rebuildTimer)
+  rebuildTimer = setTimeout(rebuildPreview, 50)
+}
+
+function numField(label, value, onChange, step = 0.5) {
+  const row = document.createElement("div")
+  row.className = "row"
+  const lab = document.createElement("label")
+  lab.textContent = label
+  lab.style.width = "90px"
+  lab.style.textAlign = "right"
+  const inp = document.createElement("input")
+  inp.type = "number"
+  inp.step = step
+  inp.value = value !== undefined ? value : ""
+  inp.addEventListener("input", () => {
+    const v = inp.value === "" ? undefined : Number(inp.value)
+    onChange(v)
+  })
+  row.appendChild(lab); row.appendChild(inp)
+  return row
+}
+
+function textField(label, value, onChange) {
+  const row = document.createElement("div")
+  row.className = "row"
+  const lab = document.createElement("label")
+  lab.textContent = label
+  lab.style.width = "90px"
+  lab.style.textAlign = "right"
+  const inp = document.createElement("input")
+  inp.type = "text"
+  inp.value = value !== undefined ? value : ""
+  inp.style.flex = "1"
+  inp.addEventListener("input", () => onChange(inp.value))
+  row.appendChild(lab); row.appendChild(inp)
+  return row
+}
+
+function selectField(label, value, items, onChange, opts) {
+  const row = document.createElement("div")
+  row.className = "row"
+  const lab = document.createElement("label")
+  lab.textContent = label
+  lab.style.width = "90px"
+  lab.style.textAlign = "right"
+  const sel = document.createElement("select")
+  fillSelect(sel, items, opts || {})
+  sel.value = String(value !== undefined ? value : "")
+  sel.addEventListener("change", () => onChange(Number(sel.value)))
+  row.appendChild(lab); row.appendChild(sel)
+  return row
+}
+
+function boolField(label, value, onChange) {
+  const row = document.createElement("div")
+  row.className = "row"
+  const lab = document.createElement("label")
+  lab.textContent = label
+  lab.style.width = "90px"
+  lab.style.textAlign = "right"
+  const inp = document.createElement("input")
+  inp.type = "checkbox"
+  inp.checked = !!value
+  inp.addEventListener("change", () => onChange(inp.checked))
+  row.appendChild(lab); row.appendChild(inp)
+  return row
+}
+
+function enumField(label, value, options, onChange) {
+  const row = document.createElement("div")
+  row.className = "row"
+  const lab = document.createElement("label")
+  lab.textContent = label
+  lab.style.width = "90px"
+  lab.style.textAlign = "right"
+  const sel = document.createElement("select")
+  for (const o of options) {
+    const opt = document.createElement("option")
+    opt.value = o; opt.textContent = o
+    sel.appendChild(opt)
+  }
+  sel.value = value || options[0]
+  sel.addEventListener("change", () => onChange(sel.value))
+  row.appendChild(lab); row.appendChild(sel)
+  return row
+}
+
+function lootSummary(idx) {
+  const t = loot[idx]
+  if (!t) return "(invalid)"
+  const entries = t.entries || []
+  if (entries.length === 0) return "(empty)"
+  return entries.map((e) => {
+    const it = items?.find?.((i) => i.id === e.loot)
+    const name = it ? it.display : `#${e.loot}`
+    return `${name}@${e.chance}`
+  }).join(", ")
+}
+
+function lootLabel(idx) {
+  const t = loot[idx]
+  if (!t) return `#${idx}`
+  return `#${idx} — ${t.display || "(unnamed)"}`
+}
+
+function renderLootEditor(host) {
+  host.innerHTML = ""
+  const npc = currentNpc()
+  const tableIdx = npc.loot ?? 0
+
+  const headerRow = document.createElement("div")
+  headerRow.className = "row"
+  const lab = document.createElement("label")
+  lab.textContent = "loot"
+  lab.style.width = "90px"
+  lab.style.textAlign = "right"
+  const sel = document.createElement("select")
+  for (let i = 0; i < loot.length; i++) {
+    const opt = document.createElement("option")
+    opt.value = String(i)
+    opt.textContent = lootLabel(i)
+    sel.appendChild(opt)
+  }
+  sel.value = String(tableIdx)
+  sel.addEventListener("change", () => {
+    npc.loot = Number(sel.value)
+    renderLootEditor(host)
+  })
+  const addTable = document.createElement("button")
+  addTable.className = "small"
+  addTable.textContent = "+ new table"
+  addTable.addEventListener("click", () => {
+    loot.push({ display: `Loot Table ${loot.length}`, entries: [] })
+    npc.loot = loot.length - 1
+    renderLootEditor(host)
+  })
+  headerRow.appendChild(lab)
+  headerRow.appendChild(sel)
+  headerRow.appendChild(addTable)
+  host.appendChild(headerRow)
+
+  const table = loot[tableIdx]
+  if (!table) return
+
+  const block = document.createElement("div")
+  block.className = "list-block"
+
+  const nameRow = document.createElement("div")
+  nameRow.className = "row"
+  const nameLab = document.createElement("label")
+  nameLab.textContent = "display"
+  nameLab.style.width = "60px"
+  nameLab.style.textAlign = "right"
+  const nameInp = document.createElement("input")
+  nameInp.type = "text"
+  nameInp.value = table.display || ""
+  nameInp.style.flex = "1"
+  nameInp.addEventListener("input", () => {
+    table.display = nameInp.value
+    sel.options[tableIdx].textContent = lootLabel(tableIdx)
+  })
+  nameRow.appendChild(nameLab)
+  nameRow.appendChild(nameInp)
+  block.appendChild(nameRow)
+
+  const entries = table.entries = table.entries || []
+  for (let ei = 0; ei < entries.length; ei++) {
+    const entry = entries[ei]
+    const row = document.createElement("div")
+    row.className = "row"
+
+    const itemSel = document.createElement("select")
+    fillSelect(itemSel, items || [], { labelFor: (it) => it.display || `#${it.id}` })
+    itemSel.value = String(entry.loot ?? 0)
+    itemSel.style.flex = "1"
+    itemSel.addEventListener("change", () => {
+      entry.loot = Number(itemSel.value)
+      refillNpcSelectKeepIdx()
+    })
+    row.appendChild(itemSel)
+
+    const chanceInp = document.createElement("input")
+    chanceInp.type = "number"
+    chanceInp.step = 0.05
+    chanceInp.min = 0
+    chanceInp.max = 1
+    chanceInp.value = entry.chance ?? 0
+    chanceInp.style.width = "60px"
+    chanceInp.title = "chance (0-1)"
+    chanceInp.addEventListener("input", () => {
+      entry.chance = Number(chanceInp.value) || 0
+      refillNpcSelectKeepIdx()
+    })
+    row.appendChild(chanceInp)
+
+    const sbWrap = document.createElement("label")
+    sbWrap.style.display = "flex"
+    sbWrap.style.alignItems = "center"
+    sbWrap.style.gap = "2px"
+    sbWrap.style.fontSize = "10px"
+    const sbCb = document.createElement("input")
+    sbCb.type = "checkbox"
+    sbCb.checked = !!entry.soulbound
+    sbCb.addEventListener("change", () => { entry.soulbound = sbCb.checked })
+    sbWrap.appendChild(sbCb)
+    sbWrap.appendChild(document.createTextNode("sb"))
+    row.appendChild(sbWrap)
+
+    const del = document.createElement("button")
+    del.className = "small danger"
+    del.textContent = "x"
+    del.addEventListener("click", () => {
+      entries.splice(ei, 1)
+      renderLootEditor(host)
+    })
+    row.appendChild(del)
+
+    block.appendChild(row)
+  }
+
+  const add = document.createElement("button")
+  add.className = "small"
+  add.textContent = "+ entry"
+  add.addEventListener("click", () => {
+    entries.push({ loot: items?.[0]?.id ?? 0, chance: 0.1, soulbound: false })
+    renderLootEditor(host)
+  })
+  block.appendChild(add)
+  host.appendChild(block)
+}
+
+function refillNpcSelectKeepIdx() {
+  // loot summary in npc dropdown isn't shown, but we need to refresh the loot dropdown options
+  // re-render the loot editor's <option> labels by re-rendering the loot section
+  const host = document.getElementById("loot-host")
+  if (host) renderLootEditor(host)
+}
+
+function renderStats() {
+  statsHost.innerHTML = ""
+  const npc = currentNpc()
+  statsHost.appendChild(textField("display", npc.display, (v) => {
+    npc.display = v; refillNpcSelect()
+  }))
+  statsHost.appendChild(numField("id", npc.id, () => {}, 1))
+  statsHost.lastChild.querySelector("input").disabled = true
+  statsHost.appendChild(numField("health", npc.health, (v) => { npc.health = v }, 1))
+  statsHost.appendChild(numField("range", npc.range, (v) => { npc.range = v }, 0.5))
+  statsHost.appendChild(numField("hitbox", npc.hitbox, (v) => { npc.hitbox = v; scheduleRebuild() }, 0.1))
+
+  const lootHost = document.createElement("div")
+  lootHost.id = "loot-host"
+  statsHost.appendChild(lootHost)
+  renderLootEditor(lootHost)
+}
+
+function renderModes() {
+  modesHost.innerHTML = ""
+  const npc = currentNpc()
+  if (!npc.modes) npc.modes = []
+  for (let mi = 0; mi < npc.modes.length; mi++) {
+    modesHost.appendChild(renderMode(npc.modes[mi], mi))
+  }
+}
+
+function renderMode(mode, mi) {
+  const block = document.createElement("div")
+  block.className = "list-block"
+
+  const header = document.createElement("div")
+  header.className = "list-block-header"
+  const title = document.createElement("span")
+  title.className = "list-block-title"
+  title.textContent = `Mode ${mi}`
+  const del = document.createElement("button")
+  del.className = "small danger"
+  del.textContent = "delete mode"
+  del.addEventListener("click", () => {
+    currentNpc().modes.splice(mi, 1)
+    renderModes()
+  })
+  header.appendChild(title); header.appendChild(del)
+  block.appendChild(header)
+
+  block.appendChild(numField("duration", mode.duration, (v) => mode.duration = v, 0.5))
+  block.appendChild(numField("min_health", mode.min_health, (v) => mode.min_health = v, 1))
+  block.appendChild(numField("max_health", mode.max_health, (v) => mode.max_health = v, 1))
+  block.appendChild(enumField("movement", mode.movement, MOVEMENTS, (v) => mode.movement = v))
+  block.appendChild(numField("speed", mode.speed, (v) => mode.speed = v, 0.1))
+  block.appendChild(boolField("single_use", mode.single_use, (v) => {
+    if (v) mode.single_use = true
+    else delete mode.single_use
+  }))
+  block.appendChild(boolField("priority", mode.priority, (v) => {
+    if (v) mode.priority = true
+    else delete mode.priority
+  }))
+
+  const attacksLabel = document.createElement("div")
+  attacksLabel.className = "muted"
+  attacksLabel.textContent = "Attacks"
+  attacksLabel.style.marginTop = "6px"
+  block.appendChild(attacksLabel)
+
+  if (!mode.attacks) mode.attacks = []
+  for (let ai = 0; ai < mode.attacks.length; ai++) {
+    block.appendChild(renderAttack(mode, mode.attacks[ai], ai))
+  }
+
+  const add = document.createElement("button")
+  add.className = "small"
+  add.textContent = "+ attack"
+  add.addEventListener("click", () => {
+    mode.attacks.push({ animation: 0, reload: 1, wait: 0, projectiles: [] })
+    renderModes()
+  })
+  block.appendChild(add)
+
+  return block
+}
+
+function renderAttack(mode, attack, ai) {
+  const block = document.createElement("div")
+  block.className = "list-block"
+  block.style.background = "var(--panel)"
+
+  const header = document.createElement("div")
+  header.className = "list-block-header"
+  const title = document.createElement("span")
+  title.textContent = `Attack ${ai}`
+  const del = document.createElement("button")
+  del.className = "small danger"
+  del.textContent = "x"
+  del.addEventListener("click", () => {
+    mode.attacks.splice(ai, 1)
+    renderModes()
+  })
+  header.appendChild(title); header.appendChild(del)
+  block.appendChild(header)
+
+  block.appendChild(selectField("animation", attack.animation, animations, (v) => attack.animation = v, {
+    labelFor: (a) => a.display || `anim ${a.id}`,
+  }))
+  block.appendChild(numField("reload", attack.reload, (v) => attack.reload = v, 0.1))
+  block.appendChild(numField("wait", attack.wait, (v) => attack.wait = v, 0.1))
+
+  // projectiles
+  const projLabel = document.createElement("div")
+  projLabel.className = "muted"
+  projLabel.textContent = "projectiles"
+  block.appendChild(projLabel)
+  if (!attack.projectiles) attack.projectiles = []
+  for (let pi = 0; pi < attack.projectiles.length; pi++) {
+    const proj = attack.projectiles[pi]
+    const row = document.createElement("div")
+    row.className = "row"
+    const sel = document.createElement("select")
+    fillSelect(sel, projectiles, { labelFor: (p) => p.display || `proj ${p.id}` })
+    sel.value = String(proj.id)
+    sel.addEventListener("change", () => proj.id = Number(sel.value))
+    row.appendChild(sel)
+    const ang = document.createElement("input")
+    ang.type = "number"; ang.step = 5; ang.style.width = "60px"
+    ang.value = proj.angle ?? 0
+    ang.title = "angle"
+    ang.addEventListener("input", () => proj.angle = Number(ang.value) || 0)
+    row.appendChild(ang)
+    const x = document.createElement("button")
+    x.className = "small danger"
+    x.textContent = "x"
+    x.addEventListener("click", () => { attack.projectiles.splice(pi, 1); renderModes() })
+    row.appendChild(x)
+    block.appendChild(row)
+  }
+  const addProj = document.createElement("button")
+  addProj.className = "small"
+  addProj.textContent = "+ projectile"
+  addProj.addEventListener("click", () => {
+    attack.projectiles.push({ id: projectiles[0]?.id ?? 0, angle: 0 })
+    renderModes()
+  })
+  block.appendChild(addProj)
+
+  // bombs
+  const bombLabel = document.createElement("div")
+  bombLabel.className = "muted"
+  bombLabel.textContent = "bombs"
+  bombLabel.style.marginTop = "4px"
+  block.appendChild(bombLabel)
+  if (!attack.bombs) attack.bombs = []
+  for (let bi = 0; bi < attack.bombs.length; bi++) {
+    const bom = attack.bombs[bi]
+    const row = document.createElement("div")
+    row.className = "row"
+    const sel = document.createElement("select")
+    fillSelect(sel, bombs, { labelFor: (b) => b.display || `bomb ${b.id}` })
+    sel.value = String(bom.id)
+    sel.addEventListener("change", () => bom.id = Number(sel.value))
+    row.appendChild(sel)
+    const ang = document.createElement("input")
+    ang.type = "number"; ang.step = 5; ang.style.width = "60px"
+    ang.value = bom.angle ?? 0
+    ang.addEventListener("input", () => bom.angle = Number(ang.value) || 0)
+    row.appendChild(ang)
+    const x = document.createElement("button")
+    x.className = "small danger"
+    x.textContent = "x"
+    x.addEventListener("click", () => { attack.bombs.splice(bi, 1); renderModes() })
+    row.appendChild(x)
+    block.appendChild(row)
+  }
+  const addBomb = document.createElement("button")
+  addBomb.className = "small"
+  addBomb.textContent = "+ bomb"
+  addBomb.addEventListener("click", () => {
+    attack.bombs.push({ id: bombs[0]?.id ?? 0, angle: 0 })
+    renderModes()
+  })
+  block.appendChild(addBomb)
+
+  // summons
+  const sumLabel = document.createElement("div")
+  sumLabel.className = "muted"
+  sumLabel.textContent = "summons"
+  sumLabel.style.marginTop = "4px"
+  block.appendChild(sumLabel)
+  if (!attack.summons) attack.summons = []
+  for (let si = 0; si < attack.summons.length; si++) {
+    const sum = attack.summons[si]
+    const row = document.createElement("div"); row.className = "row"
+    const sel = document.createElement("select")
+    fillSelect(sel, npcs, { labelFor: (n) => n.display || `npc ${n.id}` })
+    sel.value = String(sum.id)
+    sel.addEventListener("change", () => sum.id = Number(sel.value))
+    row.appendChild(sel)
+    const xInp = document.createElement("input")
+    xInp.type = "number"; xInp.step = 0.5; xInp.style.width = "50px"
+    xInp.value = sum.x ?? 0; xInp.title = "x offset"
+    xInp.addEventListener("input", () => sum.x = Number(xInp.value) || 0)
+    row.appendChild(xInp)
+    const yInp = document.createElement("input")
+    yInp.type = "number"; yInp.step = 0.5; yInp.style.width = "50px"
+    yInp.value = sum.y ?? 0; yInp.title = "y offset"
+    yInp.addEventListener("input", () => sum.y = Number(yInp.value) || 0)
+    row.appendChild(yInp)
+    const x = document.createElement("button"); x.className = "small danger"; x.textContent = "x"
+    x.addEventListener("click", () => { attack.summons.splice(si, 1); renderModes() })
+    row.appendChild(x)
+    block.appendChild(row)
+  }
+  const addSum = document.createElement("button")
+  addSum.className = "small"
+  addSum.textContent = "+ summon"
+  addSum.addEventListener("click", () => {
+    attack.summons.push({ id: npcs[0]?.id ?? 0, x: 0, y: 0 })
+    renderModes()
+  })
+  block.appendChild(addSum)
+
+  return block
+}
+
+function renderBodyTabs() {
+  const tree = document.getElementById("obj-tree")
+  const inspector = document.getElementById("obj-inspector")
+  const npc = currentNpc()
+  if (!npc.body) npc.body = []
+
+  const tabs = document.createElement("div")
+  tabs.className = "row wrap"
+  tabs.style.marginBottom = "6px"
+  for (let i = 0; i < npc.body.length; i++) {
+    const b = document.createElement("button")
+    b.className = "small"
+    if (i === bodyEditTargetIdx) b.classList.add("primary")
+    b.textContent = npc.body[i].label || `part ${i}`
+    b.addEventListener("click", () => {
+      bodyEditTargetIdx = i
+      renderBodyTabs()
+    })
+    tabs.appendChild(b)
+  }
+  const add = document.createElement("button")
+  add.className = "small"
+  add.textContent = "+ part"
+  add.addEventListener("click", () => {
+    npc.body.push({ type: "container", label: "part", children: [] })
+    bodyEditTargetIdx = npc.body.length - 1
+    renderBodyTabs()
+    scheduleRebuild()
+  })
+  tabs.appendChild(add)
+  if (npc.body.length > 0) {
+    const del = document.createElement("button")
+    del.className = "small danger"
+    del.textContent = "delete part"
+    del.addEventListener("click", () => {
+      npc.body.splice(bodyEditTargetIdx, 1)
+      bodyEditTargetIdx = Math.max(0, bodyEditTargetIdx - 1)
+      renderBodyTabs()
+      scheduleRebuild()
+    })
+    tabs.appendChild(del)
+  }
+
+  tree.innerHTML = ""
+  tree.appendChild(tabs)
+
+  const treeBody = document.createElement("div")
+  tree.appendChild(treeBody)
+
+  // re-mount object editor pointed at this part
+  const part = npc.body[bodyEditTargetIdx]
+  if (part) {
+    const localTreeHost = treeBody
+    const localInspectorHost = inspector
+    // simple rebuild: setRoot triggers internal render
+    objEditorBody = createObjectEditor(localTreeHost, localInspectorHost)
+    objEditorBody.onChange(() => {
+      npc.body[bodyEditTargetIdx] = objEditorBody.getRoot()
+      scheduleRebuild()
+    })
+    objEditorBody.setRoot(part)
+  } else {
+    inspector.innerHTML = '<div class="muted">No body parts.</div>'
+  }
+}
+
+npcSelect.addEventListener("change", () => {
+  const idx = npcs.findIndex((n) => n.id === Number(npcSelect.value))
+  if (idx >= 0) loadNpc(idx)
+})
+
+document.getElementById("npc-new").addEventListener("click", () => {
+  const id = npcs.length
+  const npc = {
+    id, display: `NPC ${id}`,
+    health: 1, range: 4, hitbox: 1, loot: 0,
+    modes: [],
+    body: [
+      { type: "container", label: "head", children: [] },
+      { type: "container", label: "body", children: [] },
+      { type: "container", label: "hand", children: [] },
+    ],
+  }
+  npcs.push(npc)
+  reindexNpcs()
+  currentNpcIdx = npcs.length - 1
+  refillNpcSelect()
+  npcSelect.value = String(id)
+  loadNpc(currentNpcIdx)
+})
+
+document.getElementById("npc-clone").addEventListener("click", () => {
+  const src = currentNpc()
+  if (!src) return
+  const copy = JSON.parse(JSON.stringify(src))
+  copy.display = (src.display || "NPC") + " Copy"
+  npcs.splice(currentNpcIdx + 1, 0, copy)
+  reindexNpcs()
+  currentNpcIdx = currentNpcIdx + 1
+  refillNpcSelect()
+  npcSelect.value = String(copy.id)
+  loadNpc(currentNpcIdx)
+})
+
+document.getElementById("npc-delete").addEventListener("click", () => {
+  if (npcs.length <= 1) return
+  if (!confirm(`Delete "${currentNpc().display}"?`)) return
+  npcs.splice(currentNpcIdx, 1)
+  reindexNpcs()
+  currentNpcIdx = Math.max(0, currentNpcIdx - 1)
+  refillNpcSelect()
+  loadNpc(currentNpcIdx)
+})
+
+document.getElementById("add-mode").addEventListener("click", () => {
+  const npc = currentNpc()
+  npc.modes.push({
+    duration: 4, min_health: 0, max_health: npc.health || 1,
+    movement: "chase", speed: 1, attacks: [],
+  })
+  renderModes()
+})
+
+document.getElementById("zoom-in").addEventListener("click", () => {
+  previewApi.setZoom(previewApi.getZoom() * 1.25); updateZoomLabel()
+})
+document.getElementById("zoom-out").addEventListener("click", () => {
+  previewApi.setZoom(previewApi.getZoom() / 1.25); updateZoomLabel()
+})
+function updateZoomLabel() {
+  document.getElementById("zoom-label").textContent = previewApi.getZoom().toFixed(2) + "x"
+}
+
+document.getElementById("save").addEventListener("click", async () => {
+  const btn = document.getElementById("save")
+  const orig = btn.textContent
+  btn.disabled = true
+  btn.textContent = "Saving…"
+  try {
+    reindexNpcs()
+    await saveAsset("npcs.json", npcs)
+    await saveAsset("loot.json", loot)
+    status.textContent = `Saved npcs + loot at ${new Date().toLocaleTimeString()}`
+    status.style.color = "var(--good)"
+  } catch (e) {
+    status.textContent = "Error: " + e.message
+    status.style.color = "var(--danger)"
+  } finally {
+    btn.disabled = false
+    btn.textContent = orig
+  }
+})
+
+init().catch((e) => {
+  status.textContent = "Init error: " + e.message
+  status.style.color = "var(--danger)"
+  console.error(e)
+})
+</script>
+</body>
+</html>

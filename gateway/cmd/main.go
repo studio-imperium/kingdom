@@ -1,23 +1,27 @@
 package main
 
 import (
-	"database/sql"
-	"gateway/gameservers"
+	"gateway/data"
 	"log"
-
-	_ "github.com/lib/pq"
+	"net/http"
 )
 
+func createApiSurface() http.Handler {
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /login", auth(false))
+	mux.HandleFunc("POST /register", auth(true))
+	mux.HandleFunc("POST /logout", logout)
+	mux.HandleFunc("POST /character/new", create_character)
+	mux.HandleFunc("GET /gameservers", get_gameservers)
+	mux.HandleFunc("POST /verify", verify_token)
+	return mux
+}
+
 func main() {
-	db, err := sql.Open("postgres", "host=/var/run/postgresql port=5432 dbname=kingdoms")
-
-	if err != nil {
-		log.Fatal(err)
+	if err := data.Open(); err != nil {
+		log.Print(err)
+		return
 	}
-	if err := db.Ping(); err != nil {
-		log.Fatal(err)
-	}
-
-	gameservers.GetGameservers(db)
-	db.Close()
+	defer data.Close()
+	log.Print(http.ListenAndServe(":8080", createApiSurface()))
 }

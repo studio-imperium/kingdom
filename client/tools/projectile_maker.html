@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Projectile / Bomb Maker</title>
+<link rel="stylesheet" href="/tools/shared/style.css">
+<style>
+  .proj-grid {
+    grid-template-columns: 320px 1fr 340px;
+    gap: 0;
+  }
+  #left-panel  { grid-column: 1; border-right: 1px solid var(--border); }
+  #preview-host{ grid-column: 2; }
+  #right-panel { grid-column: 3; border-left: 1px solid var(--border); display: flex; flex-direction: column; }
+  #obj-tree { flex: 1; overflow: auto; padding: 8px; }
+  #obj-inspector { border-top: 1px solid var(--border); padding: 8px; max-height: 50%; overflow: auto; }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <h2 id="tool-title">Projectiles</h2>
+  <label>Item</label>
+  <select id="item-select"></select>
+  <button id="item-new" class="small">+ new</button>
+  <button id="item-clone" class="small">clone</button>
+  <button id="item-delete" class="small danger">delete</button>
+  <span class="spacer"></span>
+  <span class="status" id="status"></span>
+  <button id="save" class="primary">Save</button>
+</div>
+
+<div class="tabs">
+  <div class="tab active" data-tab="projectiles">Projectiles</div>
+  <div class="tab" data-tab="bombs">Bombs</div>
+</div>
+
+<div class="app-grid proj-grid" style="height: calc(100vh - 48px - 38px);">
+  <div id="left-panel" class="panel">
+    <div class="panel-header">Stats</div>
+    <div class="panel-body" id="stats-host"></div>
+  </div>
+
+  <div id="preview-host">
+    <div class="preview-controls">
+      <button id="zoom-out" class="small">−</button>
+      <span id="zoom-label" class="muted" style="padding:0 6px;align-self:center;font-size:11px">1.0x</span>
+      <button id="zoom-in" class="small">+</button>
+    </div>
+  </div>
+
+  <div id="right-panel" class="panel">
+    <div class="panel-header">Object</div>
+    <div id="obj-tree" class="tree"></div>
+    <div id="obj-inspector"></div>
+  </div>
+</div>
+
+<script src="/tools/shared/api.js"></script>
+<script src="/tools/shared/dropdowns.js"></script>
+<script src="/tools/shared/preview.js"></script>
+<script src="/tools/shared/object_editor.js"></script>
+<script>
+let projectiles = []
+let bombs = []
+let currentTab = "projectiles"
+let currentIdx = 0
+let previewApi = null
+let objEditor = null
+let objPartIdx = 0
+let rebuildTimer = null
+
+const statsHost = document.getElementById("stats-host")
+const itemSelect = document.getElementById("item-select")
+const status = document.getElementById("status")
+const toolTitle = document.getElementById("tool-title")
+
+async function init() {
+  ;[projectiles, bombs] = await Promise.all([
+    loadAsset("projectiles.json"),
+    loadAsset("bombs.json"),
+  ])
+  reindexProjectiles()
+  reindexBombs()
+  previewApi = await makePreview(document.getElementById("preview-host"), { zoom: 2.5 })
+  updateZoomLabel()
+  refillItemSelect()
+  loadItem(0)
+}
+
+function items() {
+  return currentTab === "projectiles" ? projectiles : bombs
+}
+
+function reindexProjectiles() {
+  for (let i = 0; i < projectiles.length; i++) projectiles[i].id = i
+}
+function reindexBombs() {
+  for (let i = 0; i < bombs.length; i++) bombs[i].id = i
+}
+function reindexCurrent() {
+  if (currentTab === "projectiles") reindexProjectiles()
+  else reindexBombs()
+}
+
+function refillItemSelect() {
+  fillSelect(itemSelect, items())
+  itemSelect.value = String(items()[currentIdx]?.id ?? 0)
+}
+
+function currentItem() {
+  return items()[currentIdx]
+}
+
+function loadItem(idx) {
+  if (idx < 0 || idx >= items().length) return
+  currentIdx = idx
+  objPartIdx = 0
+  renderStats()
+  renderObjTabs()
+  rebuildPreview()
+}
+
+function rebuildPreview() {
+  if (!previewApi) return
+  previewApi.clear()
+  const it = currentItem()
+  if (!it) return
+  if (currentTab === "projectiles" && it.hitbox) {
+    previewApi.add(makeHitboxCircle(it.hitbox))
+  }
+  if (currentTab === "bombs" && it.radius) {
+    previewApi.add(makeHitboxCircle(it.radius, 0xffaa44, 0.12))
+  }
+  const c = new PIXI.Container()
+  for (const part of it.object || []) {
+    c.addChild(buildObject(part))
+  }
+  previewApi.add(c)
+  if (currentTab === "bombs" && it.trail) {
+    const trail = buildObject(it.trail)
+    trail.x -= 30
+    previewApi.add(trail)
+  }
+}
+
+function scheduleRebuild() {
+  clearTimeout(rebuildTimer)
+  rebuildTimer = setTimeout(rebuildPreview, 50)
+}
+
+function numField(label, value, onChange, step = 0.5) {
+  const row = document.createElement("div"); row.className = "row"
+  const lab = document.createElement("label")
+  lab.textContent = label; lab.style.width = "90px"; lab.style.textAlign = "right"
+  const inp = document.createElement("input")
+  inp.type = "number"; inp.step = step
+  inp.value = value !== undefined ? value : ""
+  inp.addEventListener("input", () => {
+    const v = inp.value === "" ? undefined : Number(inp.value)
+    onChange(v)
+  })
+  row.appendChild(lab); row.appendChild(inp)
+  return row
+}
+function textField(label, value, onChange) {
+  const row = document.createElement("div"); row.className = "row"
+  const lab = document.createElement("label")
+  lab.textContent = label; lab.style.width = "90px"; lab.style.textAlign = "right"
+  const inp = document.createElement("input")
+  inp.type = "text"
+  inp.value = value !== undefined ? value : ""
+  inp.style.flex = "1"
+  inp.addEventListener("input", () => onChange(inp.value))
+  row.appendChild(lab); row.appendChild(inp)
+  return row
+}
+function boolField(label, value, onChange) {
+  const row = document.createElement("div"); row.className = "row"
+  const lab = document.createElement("label")
+  lab.textContent = label; lab.style.width = "90px"; lab.style.textAlign = "right"
+  const inp = document.createElement("input")
+  inp.type = "checkbox"
+  inp.checked = !!value
+  inp.addEventListener("change", () => onChange(inp.checked))
+  row.appendChild(lab); row.appendChild(inp)
+  return row
+}
+
+function renderStats() {
+  statsHost.innerHTML = ""
+  const it = currentItem()
+  if (!it) return
+
+  statsHost.appendChild(textField("display", it.display, (v) => {
+    it.display = v; refillItemSelect()
+  }))
+  const idRow = numField("id", it.id, () => {}, 1)
+  idRow.querySelector("input").disabled = true
+  statsHost.appendChild(idRow)
+
+  if (currentTab === "projectiles") {
+    statsHost.appendChild(numField("speed", it.speed, (v) => it.speed = v, 0.1))
+    statsHost.appendChild(numField("range", it.range, (v) => it.range = v, 0.5))
+    statsHost.appendChild(numField("damage", it.damage, (v) => it.damage = v, 1))
+    statsHost.appendChild(numField("hitbox", it.hitbox, (v) => { it.hitbox = v; scheduleRebuild() }, 0.1))
+    statsHost.appendChild(boolField("piercing", it.piercing, (v) => it.piercing = v))
+  } else {
+    statsHost.appendChild(numField("airtime", it.airtime, (v) => it.airtime = v, 0.1))
+    statsHost.appendChild(numField("damage", it.damage, (v) => it.damage = v, 1))
+    statsHost.appendChild(numField("radius", it.radius, (v) => { it.radius = v; scheduleRebuild() }, 1))
+
+    const hr = document.createElement("hr")
+    statsHost.appendChild(hr)
+    const note = document.createElement("div")
+    note.className = "muted"
+    note.textContent = "Trail (single sprite)"
+    statsHost.appendChild(note)
+    if (!it.trail) it.trail = { label: "trail", sprite: { w: 0, h: 0, x: 0, y: 0 } }
+    statsHost.appendChild(textField("label", it.trail.label, (v) => { it.trail.label = v; scheduleRebuild() }))
+    statsHost.appendChild(numField("sprite.x", it.trail.sprite?.x, (v) => { it.trail.sprite.x = v || 0; scheduleRebuild() }, 1))
+    statsHost.appendChild(numField("sprite.y", it.trail.sprite?.y, (v) => { it.trail.sprite.y = v || 0; scheduleRebuild() }, 1))
+    statsHost.appendChild(numField("sprite.w", it.trail.sprite?.w, (v) => { it.trail.sprite.w = v || 0; scheduleRebuild() }, 1))
+    statsHost.appendChild(numField("sprite.h", it.trail.sprite?.h, (v) => { it.trail.sprite.h = v || 0; scheduleRebuild() }, 1))
+    statsHost.appendChild(numField("offset x", it.trail.x, (v) => { it.trail.x = v; scheduleRebuild() }, 0.5))
+    statsHost.appendChild(numField("offset y", it.trail.y, (v) => { it.trail.y = v; scheduleRebuild() }, 0.5))
+  }
+}
+
+function renderObjTabs() {
+  const tree = document.getElementById("obj-tree")
+  const inspector = document.getElementById("obj-inspector")
+  const it = currentItem()
+  if (!it) return
+  if (!it.object) it.object = []
+
+  const tabs = document.createElement("div")
+  tabs.className = "row wrap"
+  tabs.style.marginBottom = "6px"
+  for (let i = 0; i < it.object.length; i++) {
+    const b = document.createElement("button")
+    b.className = "small"
+    if (i === objPartIdx) b.classList.add("primary")
+    b.textContent = it.object[i].label || `part ${i}`
+    b.addEventListener("click", () => {
+      objPartIdx = i
+      renderObjTabs()
+    })
+    tabs.appendChild(b)
+  }
+  const add = document.createElement("button")
+  add.className = "small"
+  add.textContent = "+ part"
+  add.addEventListener("click", () => {
+    it.object.push({ type: "container", label: "part", children: [] })
+    objPartIdx = it.object.length - 1
+    renderObjTabs(); scheduleRebuild()
+  })
+  tabs.appendChild(add)
+  if (it.object.length > 0) {
+    const del = document.createElement("button")
+    del.className = "small danger"
+    del.textContent = "delete part"
+    del.addEventListener("click", () => {
+      it.object.splice(objPartIdx, 1)
+      objPartIdx = Math.max(0, objPartIdx - 1)
+      renderObjTabs(); scheduleRebuild()
+    })
+    tabs.appendChild(del)
+  }
+
+  tree.innerHTML = ""
+  tree.appendChild(tabs)
+
+  const treeBody = document.createElement("div")
+  tree.appendChild(treeBody)
+
+  const part = it.object[objPartIdx]
+  if (part) {
+    objEditor = createObjectEditor(treeBody, inspector)
+    objEditor.onChange(() => {
+      it.object[objPartIdx] = objEditor.getRoot()
+      scheduleRebuild()
+    })
+    objEditor.setRoot(part)
+  } else {
+    inspector.innerHTML = '<div class="muted">No object parts.</div>'
+  }
+}
+
+itemSelect.addEventListener("change", () => {
+  const idx = items().findIndex((p) => p.id === Number(itemSelect.value))
+  if (idx >= 0) loadItem(idx)
+})
+
+document.getElementById("item-new").addEventListener("click", () => {
+  const id = items().length
+  let it
+  if (currentTab === "projectiles") {
+    it = {
+      id, display: `Projectile ${id}`,
+      speed: 3, range: 3, damage: 1, hitbox: 0.6, piercing: true,
+      object: [{ type: "container", label: "projectile", children: [] }],
+    }
+  } else {
+    it = {
+      id, display: `Bomb ${id}`,
+      airtime: 1, damage: 1, radius: 2,
+      trail: { label: "trail", sprite: { w: 0, h: 0, x: 0, y: 0 }, x: 0, y: 0 },
+      object: [{ type: "container", label: "bomb", children: [] }],
+    }
+  }
+  items().push(it)
+  reindexCurrent()
+  currentIdx = items().length - 1
+  refillItemSelect()
+  itemSelect.value = String(id)
+  loadItem(currentIdx)
+})
+
+document.getElementById("item-clone").addEventListener("click", () => {
+  const src = currentItem()
+  if (!src) return
+  const copy = JSON.parse(JSON.stringify(src))
+  copy.display = (src.display || (currentTab === "projectiles" ? "Projectile" : "Bomb")) + " Copy"
+  items().splice(currentIdx + 1, 0, copy)
+  reindexCurrent()
+  currentIdx = currentIdx + 1
+  refillItemSelect()
+  itemSelect.value = String(copy.id)
+  loadItem(currentIdx)
+})
+
+document.getElementById("item-delete").addEventListener("click", () => {
+  if (items().length <= 1) return
+  if (!confirm(`Delete "${currentItem().display}"?`)) return
+  items().splice(currentIdx, 1)
+  reindexCurrent()
+  currentIdx = Math.max(0, currentIdx - 1)
+  refillItemSelect()
+  loadItem(currentIdx)
+})
+
+for (const t of document.querySelectorAll(".tab")) {
+  t.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach((x) => x.classList.remove("active"))
+    t.classList.add("active")
+    currentTab = t.dataset.tab
+    toolTitle.textContent = currentTab === "projectiles" ? "Projectiles" : "Bombs"
+    currentIdx = 0
+    refillItemSelect()
+    loadItem(0)
+  })
+}
+
+document.getElementById("zoom-in").addEventListener("click", () => {
+  previewApi.setZoom(previewApi.getZoom() * 1.25); updateZoomLabel()
+})
+document.getElementById("zoom-out").addEventListener("click", () => {
+  previewApi.setZoom(previewApi.getZoom() / 1.25); updateZoomLabel()
+})
+function updateZoomLabel() {
+  document.getElementById("zoom-label").textContent = previewApi.getZoom().toFixed(2) + "x"
+}
+
+document.getElementById("save").addEventListener("click", async () => {
+  const btn = document.getElementById("save")
+  btn.disabled = true
+  const orig = btn.textContent
+  btn.textContent = "Saving…"
+  try {
+    reindexProjectiles()
+    reindexBombs()
+    await saveAsset("projectiles.json", projectiles)
+    await saveAsset("bombs.json", bombs)
+    status.textContent = `Saved projectiles + bombs at ${new Date().toLocaleTimeString()}`
+    status.style.color = "var(--good)"
+  } catch (e) {
+    status.textContent = "Error: " + e.message
+    status.style.color = "var(--danger)"
+  } finally {
+    btn.disabled = false
+    btn.textContent = orig
+  }
+})
+
+init().catch((e) => {
+  status.textContent = "Init error: " + e.message
+  status.style.color = "var(--danger)"
+  console.error(e)
+})
+</script>
+</body>
+</html>

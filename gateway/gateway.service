@@ -5,7 +5,7 @@ Requires=redis-server.service postgresql.service
 
 [Service]
 User=william
-ExecStart=//home/william/daemons/kingdoms/Gateway
+ExecStart=//home/william/daemons/kingdoms/gateway
 Restart=on-failure
 RestartSec=5
 TimeoutStopSec=30

@@ -1,7 +1,7 @@
 const projectiles = {}
 
 class Projectile {
-  constructor(id, x, y, angle, mine = false) {
+  constructor(id, x, y, angle, mine = false, owner = null) {
     this.object = build_projectile(id)
     this.which = id
     this.origin_x = x
@@ -11,6 +11,7 @@ class Projectile {
     this.object.angle = angle
     this.object.scale.set(0)
     this.mine = mine
+    this.owner = mine ? token : owner
 
     add_object(this.object)
   }
@@ -35,7 +36,7 @@ function build_projectile(projectile_id) {
 
 function projectile_tick(deltaMS) {
   for (let id of Object.keys(projectiles)) {
-    const { object, which, origin_x, origin_y, mine } = projectiles[id]
+    const { object, which, origin_x, origin_y, mine, owner } = projectiles[id]
     const data = projectile_data[which]
     const speed = data.speed
     const rad = (object.angle - 90) * (Math.PI / 180)
@@ -61,7 +62,19 @@ function projectile_tick(deltaMS) {
       object.alpha = data.range - travelled_distance
     }
 
-    if (!data.piercing && mine) {
+    if (!data.piercing) {
+      for (const [target_id, target] of Object.entries({ ...characters, [token]: character })) {
+        if (
+          target && Number(target_id) !== owner &&
+          distance(target.object.x, target.object.y, proj_x, proj_y) <= data.hitbox + 0.5
+        ) {
+          hit_enemy = true
+          break
+        }
+      }
+    }
+
+    if (!data.piercing && mine && !hit_enemy) {
       for (let npc of Object.values(npcs)) {
         if (
           distance(npc.object.x, npc.object.y, proj_x, proj_y) <

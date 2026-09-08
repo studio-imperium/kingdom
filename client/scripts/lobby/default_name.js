@@ -1,4 +1,4 @@
-{
+function set_default_name() {
   const adjectives = [
     "Bumbling", "Busy", "Flustered", "Baffled", "Bashful", "Bouncy",
     "Clumsy", "Dawdling", "Dizzy", "Drowsy", "Fidgety", "Frazzled",
@@ -15,5 +15,9 @@
     "Sand Caster", "Sand Cultist", "Dune Wraith",
   ]
   const pick = (names) => names[Math.floor(Math.random() * names.length)]
-  document.querySelector(".text_input").defaultValue = `${pick(adjectives)} ${pick(enemies)}`.replaceAll(" ", "")
+  const name = localStorage.getItem("kingdom.player_name") || sessionStorage.getItem("kingdom.player_name") || `${pick(adjectives)} ${pick(enemies)}`.replaceAll(" ", "")
+  document.querySelector(".text_input").value = name
+  localStorage.setItem("kingdom.player_name", name)
 }
+set_default_name()
+document.querySelector(".text_input").addEventListener("input", event => localStorage.setItem("kingdom.player_name", event.target.value.trim()))

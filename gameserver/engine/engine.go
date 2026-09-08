@@ -53,7 +53,7 @@ func (engine *Engine) RemoveCharacter(id uint32) {
 	delete(engine.Characters, id)
 	delete(engine.simulations, id)
 	if character.finished != nil {
-		character.finished <- CharacterData{Id: character.characterID, Dead: character.Dead, Hand: character.hand, Head: character.head, Body: character.body, Inventory: character.inventory}
+		character.finished <- CharacterData{Id: character.characterID, Username: character.username, Level: character.Level, Exp: character.Exp, Dead: character.Dead, Hand: character.hand, Head: character.head, Body: character.body, Inventory: character.inventory}
 	}
 	close(character.send)
 }

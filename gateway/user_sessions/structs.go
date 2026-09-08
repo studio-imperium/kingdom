@@ -21,6 +21,9 @@ type AccountData struct {
 }
 type Character struct {
 	Id        int64           `json:"id,string"`
+	Username  string          `json:"username"`
+	Level     int64           `json:"level,string"`
+	Exp       int64           `json:"exp,string"`
 	Dead      bool            `json:"dead"`
 	Hand      uint8           `json:"hand"`
 	Head      uint8           `json:"head"`
@@ -37,10 +40,11 @@ func DefaultAccountData() AccountData {
 
 func DefaultCharacter() Character {
 	return Character{
-		Id:   rand.Int64(),
-		Hand: 0,
-		Head: 0,
-		Body: 1,
+		Id:    rand.Int64(),
+		Level: 1,
+		Hand:  0,
+		Head:  0,
+		Body:  1,
 		Inventory: map[uint8]uint8{
 			0: 8,
 		},

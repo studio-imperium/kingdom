@@ -34,8 +34,12 @@ func TestFinalCharacterState(t *testing.T) {
 	for _, dead := range []bool{false, true} {
 		world := CreateEngine()
 		output, finished := make(chan []byte, 256), make(chan CharacterData, 1)
-		saved := &CharacterData{Id: 1234567890123456789, Body: 1, Inventory: map[uint8]uint8{0: 8}}
-		world.HandlePacket(Packet{Type: JOIN, ID: 1, CharacterID: saved.Id, Character: saved, Send: output, Finished: finished})
+		saved := &CharacterData{Id: 1234567890123456789, Level: 999, Exp: 120, Body: 1, Inventory: map[uint8]uint8{0: 8}}
+		world.HandlePacket(Packet{Type: JOIN, ID: 1, CharacterID: saved.Id, Username: "PeckishNatureSpirit", Character: saved, Send: output, Finished: finished})
+		if world.Characters[1].Level != 2 {
+			t.Fatal("loaded level was not derived from EXP")
+		}
+		world.Characters[1].AwardExp(105)
 		world.ChangeInventory(1, 1, 0)
 		if dead {
 			world.Characters[1].Damage(1000)
@@ -45,7 +49,7 @@ func TestFinalCharacterState(t *testing.T) {
 		}
 		select {
 		case state := <-finished:
-			if state.Id != saved.Id || state.Dead != dead || state.Inventory[1] != 8 || state.Inventory[0] != 0 {
+			if state.Id != saved.Id || state.Username != "PeckishNatureSpirit" || state.Level != 3 || state.Exp != 225 || state.Dead != dead || state.Inventory[1] != 8 || state.Inventory[0] != 0 {
 				t.Fatalf("bad final state: %+v", state)
 			}
 		case <-time.After(time.Second):

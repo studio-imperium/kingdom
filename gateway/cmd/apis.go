@@ -16,6 +16,19 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+func cors(mux *http.ServeMux) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		mux.ServeHTTP(w, r)
+	}
+}
+
 func writeJSON(w http.ResponseWriter, status int, value any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
@@ -129,6 +142,15 @@ func get_gameservers(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, servers)
 }
 
+func get_leaderboard(w http.ResponseWriter, r *http.Request) {
+	leaderboard, err := sessions.GetLeaderboard()
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, leaderboard)
+}
+
 func verify_token(w http.ResponseWriter, r *http.Request) {
 	token, ok := readToken(w, r)
 	if !ok {
@@ -167,6 +189,10 @@ func update_player(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := decoder.Decode(new(any)); err != io.EOF {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "expected one JSON object"})
+		return
+	}
+	if character.Exp < 0 {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "exp must not be negative"})
 		return
 	}
 	for slot := range character.Inventory {

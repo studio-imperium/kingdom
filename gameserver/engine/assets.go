@@ -50,6 +50,7 @@ type NpcData struct {
 	ID     uint8         `json:"id"`
 	Name   string        `json:"display"`
 	Health float32       `json:"health"`
+	Exp    int64         `json:"exp"`
 	Loot   uint16        `json:"loot"`
 	Range  float32       `json:"range"`
 	Hitbox float32       `json:"hitbox"`

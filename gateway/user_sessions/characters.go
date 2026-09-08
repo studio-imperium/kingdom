@@ -43,7 +43,7 @@ func NewCharacter(token SessionToken) error {
 	if err != nil {
 		return err
 	}
-	if character_count >= 3 {
+	if character_count >= 1 {
 		return ErrCharacterLimit
 	}
 

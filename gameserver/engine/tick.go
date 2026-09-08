@@ -34,23 +34,22 @@ func (engine *Engine) Tick(delta time.Duration) {
 			projectile.Dead = true
 		}
 		if !projectile.Dead {
-			if projectile.evil {
-				for targetID, character := range engine.Characters {
-					if character.Dead || character.disconnected {
-						continue
-					}
-					if _, hit := projectile.hitlist[targetID]; hit {
-						continue
-					}
-					if hitboxesIntersect(projectile, character, false) {
-						projectile.hitlist[targetID] = character
-						Hit(projectile, character)
-						if projectile.Dead {
-							break
-						}
+			for targetID, character := range engine.Characters {
+				if character.Dead || character.disconnected || (!projectile.evil && targetID == projectile.owner) {
+					continue
+				}
+				if _, hit := projectile.hitlist[targetID]; hit {
+					continue
+				}
+				if hitboxesIntersect(projectile, character, false) {
+					projectile.hitlist[targetID] = character
+					Hit(projectile, character)
+					if projectile.Dead {
+						break
 					}
 				}
-			} else {
+			}
+			if !projectile.evil && !projectile.Dead {
 				for targetID, npc := range engine.Npcs {
 					if npc.Dead {
 						continue
@@ -77,13 +76,12 @@ func (engine *Engine) Tick(delta time.Duration) {
 		if bomb.timer > 0 {
 			continue
 		}
-		if bomb.evil {
-			for _, character := range engine.Characters {
-				if !character.Dead && !character.disconnected && withinRange(bomb, character, false) {
-					Splode(bomb, character)
-				}
+		for _, character := range engine.Characters {
+			if !character.Dead && !character.disconnected && (bomb.evil || character.id != bomb.owner) && withinRange(bomb, character, false) {
+				Splode(bomb, character)
 			}
-		} else {
+		}
+		if !bomb.evil {
 			for _, npc := range engine.Npcs {
 				if !npc.Dead && withinRange(bomb, npc, true) {
 					Splode(bomb, npc)

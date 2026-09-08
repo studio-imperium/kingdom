@@ -20,7 +20,7 @@ var player_activity_query string = `
 `
 var update_character_query = `
 	UPDATE game."character" AS c
-	SET inventory = $1, dead = $4
+	SET inventory = $1, dead = $4, exp = $5, username = COALESCE(NULLIF($6, ''), c.username)
 	FROM game.users AS u
 	WHERE c.id = $2 AND c.user_id = u.id AND u.email = $3 AND c.dead IS NOT TRUE
 	RETURNING c.id
@@ -53,6 +53,6 @@ func UpdateCharacter(token sessions.SessionToken, character sessions.Character) 
 	}
 	inventory[24], inventory[25], inventory[26] = character.Head, character.Body, character.Hand
 
-	updated_char := data.DB.QueryRowContext(context.Background(), update_character_query, inventory[:], character.Id, email, character.Dead)
+	updated_char := data.DB.QueryRowContext(context.Background(), update_character_query, inventory[:], character.Id, email, character.Dead, character.Exp, character.Username)
 	return updated_char.Scan(&character.Id)
 }

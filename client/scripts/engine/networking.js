@@ -203,7 +203,7 @@ function set_attack(data) {
     const angle = data.getUint16(offset, true)
     offset += 2
 
-    const projectile = new Projectile(which, x, y, angle)
+    const projectile = new Projectile(which, x, y, angle, false, id)
     projectiles[projectile_id] = projectile
   }
 
@@ -371,8 +371,16 @@ function drop_item(slot) {
 }
 
 async function connect() {
+  let leaving = false
+  window.addEventListener("pagehide", () => {
+    leaving = true
+    app.stop()
+    socket?.close(1000, "Leaving game")
+  })
+  window.addEventListener("pageshow", event => { if (event.persisted) location.reload() })
   await account_ready
-  if (!account_session) return
+  if (leaving) return
+  if (!account_session) { closed(); return }
   socket = new WebSocket(prefixs[0] + "://" + addr + "/connect")
   socket.binaryType = "arraybuffer"
 
@@ -384,6 +392,10 @@ async function connect() {
   function closed(e) {
     console.log(e)
     CONNECTED = false
+    if (!leaving) {
+      const status = document.getElementById("connecting_status")
+      if (status) status.innerHTML = 'Connection closed. <a href="/" style="color:inherit">Return to lobby</a>'
+    }
   }
 
   function handle_packet(e) {
@@ -396,6 +408,7 @@ async function connect() {
         break
       case WORLD_STATE:
         set_world(data)
+        document.getElementById("connecting_screen")?.remove()
         break
       case RECIEVE_ATTACK:
         set_attack(data)

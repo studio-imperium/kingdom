@@ -4,6 +4,7 @@
         <title>Kingdom Crushers</title>
         <link rel="stylesheet" href="https://use.typekit.net/jbe5uxg.css" />
         <style>
+            #connecting_screen { position: fixed; inset: 0; z-index: 9999; display: grid; place-items: center; background: #1f1f1f; color: white; }
             html {
                 font-family: "myriad-pro";
                 font-weight: 400;
@@ -63,7 +64,7 @@
                     drop-shadow(0 -0.5px 0 #2A2A2A);
             }
 
-            .healthbar {
+            .progressbar {
                 position: relative;
                 background-color: #636363;
                 height: 0.25rem;
@@ -77,8 +78,7 @@
                 border-style: solid;
             }
 
-            .health {
-                background-color: #e14b4b;
+            .progress {
                 height: 100%;
                 border-image: url("/assets/ui/health_border.png") 9 / 9px / 0
                     round;
@@ -93,7 +93,7 @@
                 transition: width 0.3s ease;
             }
 
-            #health_label {
+            .progress_label {
                 position: absolute;
                 top: 50%;
                 left: 50%;
@@ -203,13 +203,18 @@
         <link rel="stylesheet" href="inventory.css">
     </head>
     <body style="margin: 0">
+        <div id="connecting_screen" role="status"><span id="connecting_status"></span></div>
+        <script src="/scripts/lobby/loading_messages.js"></script>
+        <script>document.getElementById("connecting_status").textContent = random_loading_message()</script>
+        <script src="/scripts/loading/water.js"></script>
         <div class="bottom_container">
-            <div id="healthbar" class="healthbar">
-                <div id="health" class="health" style="width: 90%">
+            <div id="healthbar" class="progressbar">
+                <div id="health" style="background-color: #e14b4b;" class="progress" style="width: 90%">
 
                 </div>
-                <p id="health_label">25</p>
+                <p id="health_label" class="progress_label">25</p>
             </div>
+
             <div id="hotbar" class="slots"></div>
         </div>
         <form onsubmit="submit_message(event)" class="message_container">

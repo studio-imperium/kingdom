@@ -1,5 +1,6 @@
 <html>
     <head>
+        <meta charset="utf-8">
         <title>Kingdom Crushers</title>
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <script src="/scripts/lobby/account.js"></script>
@@ -13,12 +14,57 @@
             html {
                 font-family: "myriad-pro";
                 font-weight: 400;
-                color: white;
+                color: rgb(211, 211, 211);
                 image-rendering: pixelated !important;
             }
 
+            #character_preview { align-self: center; width: 250px; height: 250px; display: flex; align-items: center; justify-content: center; margin-bottom: -1rem; }
+
             br {
                 margin-top: 1px;
+            }
+
+            .panel {
+                margin-bottom: 6px;
+                font-family: "myriad-pro";
+                font-weight: 400;
+                font-size: 1rem;
+                color: rgb(211, 211, 211);
+
+                min-width: 8rem;
+
+                background-color: #636363;
+                border-image: url("/assets/ui/border.png") 9 / 9px / 0 round;
+                padding: 6px;
+                border-width: 12px;
+                border-style: solid;
+                box-sizing: border-box;
+                image-rendering: pixelated;
+
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+            }
+            .panel input {
+                font-family: "myriad-pro";
+                font-weight: 400;
+                font-size: 1rem;
+                color: rgb(211, 211, 211);
+                position: relative;
+
+                display: flex;
+                box-sizing: content-box;
+                justify-content: center;
+
+                background-color: #525252;
+                border-image: url("/assets/ui/slot_border.png") 4 / 4px / 0 round;
+                border-width: 4px;
+                border-style: solid;
+                outline: none;
+
+                width: 95%;
+                padding: 4px;
             }
 
             .topright_container {
@@ -47,7 +93,25 @@
                 max-width: calc(100% - 2rem);
             }
 
-            #lobby_preview {
+            .enemy_preview_slot { width: 100%; margin-bottom: -2rem; }
+
+            #leaderboard_screen .center_container { width: 42rem; }
+            #leaderboard_screen .panel { align-items: stretch; max-height: calc(100dvh - 2rem); }
+            #leaderboard_screen h3 { margin: 0 0 4px; }
+            #leaderboard_screen p { margin: 0 0 12px; }
+            .leaderboard_scroll { overflow-y: auto; min-height: 0; margin-bottom: 12px; }
+            #leaderboard_screen table { width: 100%; border-collapse: collapse; table-layout: fixed; text-align: left; }
+            #leaderboard_screen th { position: sticky; top: 0; background: #525252; z-index: 1; }
+            #leaderboard_screen th, #leaderboard_screen td { padding: 4px 8px; }
+            #leaderboard_screen td { border-bottom: 1px solid #777; overflow-wrap: anywhere; }
+            #leaderboard_screen th:first-child { width: 2.5rem; }
+            #leaderboard_screen th:nth-child(3) { width: 64px; }
+            #leaderboard_screen th:last-child { width: 3rem; text-align: right; }
+            #leaderboard_screen td:last-child { text-align: right; }
+            #leaderboard_screen canvas { display: block; width: 64px; height: 64px; }
+            #leaderboard_screen small { display: block; opacity: 0.7; }
+
+            #lobby_preview, #enemy_preview {
                 display: block;
                 width: 100%;
                 height: auto;
@@ -58,17 +122,48 @@
                 background-color: greenyellow !important;
             }
 
+            .button_text {
+                font-family: "myriad-pro";
+                font-weight: 400;
+                color: rgba(255,255,255,0.6);
+                position: relative;
+                background-color: transparent;
+                border: none;
+                outline: none;
+
+                font-size: 1.25rem;
+            }
+
+            .button_alt {
+                font-family: "myriad-pro";
+                font-weight: 400;
+                color: var(--ping-color, white);
+                position: relative;
+                background-color: #777;
+
+                min-width: 8rem;
+
+                display: flex;
+                box-sizing: content-box;
+                justify-content: center;
+                border-image: url("/assets/ui/health_border.png") 9 / 9px / 0
+                    round;
+                border-width: 12px;
+                border-style: solid;
+                outline: none !important;
+            }
+
             .button {
                 font-family: "myriad-pro";
                 font-weight: 400;
                 font-size: 1rem;
-                color: white;
+                color: rgb(211, 211, 211);
 
                 min-width: 8rem;
 
                 background-color: #636363;
                 border-image: url("/assets/ui/border.png") 9 / 9px / 0 round;
-                padding: 2px;
+                padding: 6px;
                 border-width: 12px;
                 border-style: solid;
                 box-sizing: border-box;
@@ -83,15 +178,15 @@
                 font-family: "myriad-pro";
                 font-weight: 400;
                 font-size: 1rem;
-                color: black;
+                color: black !important;
                 position: relative;
-                background-color: white;
+                background-color: white !important;
 
                 display: flex;
                 box-sizing: content-box;
                 justify-content: center;
                 border-image: url("/assets/ui/text_input_border.png") 9 / 9px / 0
-                    round;
+                    round !important;
                 border-width: 12px;
                 border-style: solid;
                 outline: none !important;
@@ -116,7 +211,7 @@
 
             .dropdown option { color: var(--ping-color, white); }
 
-            .lobby_actions { display: flex; gap: 0; }
+            .lobby_actions { display: flex; gap: 0; width: 100%; }
             .lobby_actions > * { flex: 0 0 50%; min-width: 0; box-sizing: border-box; }
 
             .slots {
@@ -306,6 +401,7 @@
                 filter: opacity(0.9);
             }
             .modal {
+                display: none;
                 font: inherit;
                 color: white;
                 background: #636363;
@@ -318,64 +414,103 @@
                 max-height: calc(100% - 2rem);
                 padding: 1rem;
             }
-            .modal::backdrop { background: #0009; }
-            .modal h2 { margin: 0 0 1rem; font-size: 1.5rem; font-weight: 400; }
-            .modal_content { display: flex; flex-direction: column; gap: 0.5rem; }
-            .modal p { margin: 0 0 0.5rem; overflow-wrap: anywhere; }
-            .modal .text_input { min-width: 0; }
-            .modal .button { width: 100%; }
-            .modal_close { margin-top: 1rem; }
-            .modal :focus-visible { outline: 2px solid white !important; outline-offset: 2px; }
             .hidden {
                 display: none !important;
             }
         </style>
     </head>
     <body style="margin: 0">
-        <div class="topleft_container">
-
-        </div>
-
-        <div class="topright_container">
-            <button class="button" commandfor="login_modal" command="show-modal">Login</button>
-        </div>
-
-        <div class="center_container">
-            <canvas id="lobby_preview" width="256" height="256" aria-label="Character preview"></canvas>
-            <input class="text_input">
-            <div style="margin-bottom: 4px" class="lobby_actions">
-                <select class="dropdown" name="servers" id="servers">
-                  <option value="">Loading servers…</option>
-                </select>
-                <button class="button">Play</button>
+        <div id="default_screen" class="lobby_screen">
+            <div class="topright_container">
+                <button id="login_button" class="button" onclick="switch_screen('login')">Login</button>
+                <button id="logout_button" class="button hidden" onclick="switch_screen('logout')">Logout</button>
             </div>
-            <button style="margin-bottom: 4px" class="button" commandfor="leaderboard_modal" command="show-modal">Leaderboard</button>
-            <button class="button" commandfor="graveyard_modal" command="show-modal">Graveyard</button>
+
+            <div class="center_container">
+                <div id="character_preview">
+                    <canvas id="lobby_preview" width="256" height="256" aria-label="Character preview"></canvas>
+                </div>
+                <form class="panel" autocomplete="off" onsubmit="play(event)">
+                    <p class="hidden" role="alert" style="color: var(--ping-bad); margin: 0 0 6px 0;"></p>
+                    <input class="text_input" name="username" placeholder="username" autocomplete="off" required>
+                    <div style="margin-top: 8px" class="lobby_actions">
+                        <select class="dropdown" name="servers" id="servers">
+                          <option value="">Loading servers…</option>
+                        </select>
+                        <button type="submit" class="button_alt">Play</button>
+                    </div>
+                </form>
+                <button style="margin-bottom: 6px" class="button" onclick="switch_screen('leaderboard')">Leaderboard</button>
+                <button class="button" onclick="switch_screen('graveyard')">Graveyard</button>
+            </div>
         </div>
 
-        <dialog class="modal" id="login_modal" aria-labelledby="login_title">
-            <h2 id="login_title">Login</h2>
-            <div class="modal_content">
-                <label for="login_email">Email</label>
-                <input class="text_input" id="login_email" name="email" type="email" autocomplete="username" required>
-                <label for="login_password">Password</label>
-                <input class="text_input" id="login_password" name="password" type="password" autocomplete="current-password" required>
-                <button class="button" type="button">Login</button>
+        <div id="logout_screen" class="lobby_screen hidden">
+            <div class="center_container">
+                <form class="panel" onsubmit="submit_account(event, 'logout')">
+                    <h3 style="margin-right: auto; margin-top: 4px; margin-left: 4px;">Logout</h3>
+                    Are you sure you want to logout?
+                    <div style="margin-top: 16px" class="lobby_actions">
+                        <button type="button" class="button_alt" onclick="switch_screen('default')">Cancel</button>
+                        <button type="submit" class="button_alt">Logout</button>
+                    </div>
+                    <p class="hidden" role="alert" style="color: var(--ping-bad); margin: 4px 0 0;"></p>
+                </form>
             </div>
-            <button class="button modal_close" commandfor="login_modal" command="close">Close</button>
-        </dialog>
+        </div>
 
-        <dialog class="modal" id="leaderboard_modal" aria-labelledby="leaderboard_title">
-            <h2 id="leaderboard_title">Leaderboard</h2>
-            <p>Rankings are not available yet.</p>
-            <button class="button modal_close" commandfor="leaderboard_modal" command="close" autofocus>Close</button>
-        </dialog>
+        <div id="login_screen" class="lobby_screen hidden">
+            <div class="center_container">
+                <div class="enemy_preview_slot">
+                    <canvas id="enemy_preview" width="256" height="256" aria-label="Enemy preview"></canvas>
+                </div>
+                <form class="panel" autocomplete="off" onsubmit="submit_account(event, 'login')">
+                    <h3 style="margin-right: auto; margin-top: 4px; margin-left: 4px; margin-bottom: 6px;">Login</h3>
+                    <p class="hidden" role="alert" style="color: var(--ping-bad); margin: 0 0 12px 0;"></p>
+                    <input style="margin-top: 8px;" type="email" name="email" placeholder="email" autocomplete="off" required>
+                    <input type="password" name="password" style="margin-top: 4px;" placeholder="password" autocomplete="new-password" required>
+                    <div style="margin-top: 8px" class="lobby_actions">
+                        <button type="button" class="button_alt" onclick="switch_screen('default')">Cancel</button>
+                        <button type="submit" class="button_alt">Confirm</button>
+                    </div>
+                </form>
+                <button style="margin-top: 4px" class="button" onclick="switch_screen('register')">Dont have an account?</button>
+            </div>
+        </div>
 
-        <dialog class="modal" id="graveyard_modal" aria-labelledby="graveyard_title">
-            <h2 id="graveyard_title">Graveyard</h2>
-            <p>No fallen characters to display.</p>
-            <button class="button modal_close" commandfor="graveyard_modal" command="close" autofocus>Close</button>
-        </dialog>
+        <div id="register_screen" class="lobby_screen hidden">
+            <div class="center_container">
+                <div class="enemy_preview_slot"></div>
+                <form class="panel" autocomplete="off" onsubmit="submit_account(event, 'register')" oninput="this.elements.password_confirmation.setCustomValidity('')">
+                    <h3 style="margin-right: auto; margin-top: 4px; margin-left: 4px; margin-bottom: 6px;">Register</h3>
+                    <p class="hidden" role="alert" style="color: var(--ping-bad); margin: 0 0 12px 0;"></p>
+                    <input style="margin-top: 8px;" type="email" name="email" placeholder="email" autocomplete="off" required>
+                    <input type="password" name="password" style="margin-top: 4px;" placeholder="password" autocomplete="new-password" required>
+                    <input type="password" name="password_confirmation" style="margin-top: 4px;" placeholder="confirm password" autocomplete="new-password" required>
+                    <div style="margin-top: 8px" class="lobby_actions">
+                        <button type="button" class="button_alt" onclick="switch_screen('default')">Cancel</button>
+                        <button type="submit" class="button_alt">Confirm</button>
+                    </div>
+                </form>
+                <button style="margin-top: 4px" class="button" onclick="switch_screen('login')">Have an account?</button>
+            </div>
+        </div>
+
+        <div id="leaderboard_screen" class="lobby_screen hidden">
+            <div class="center_container">
+                <h3>Leaderboard</h3>
+                <p>Top 100 characters (dead or alive)</p>
+                <div class="leaderboard_scroll" tabindex="0" aria-label="Leaderboard">
+                    <table>
+                        <thead><tr><th scope="col">Rank</th><th scope="col">Username</th><th scope="col">Character</th><th scope="col">Level</th></tr></thead>
+                        <tbody id="leaderboard_rows"></tbody>
+                    </table>
+                </div>
+                <button class="button" onclick="switch_screen('default')">Back</button>
+            </div>
+        </div>
+
+        <div id="graveyard_screen" class="lobby_screen hidden"></div>
 
         <script src="/scripts/pkgs/pixi.js"></script>
         <script src="/scripts/pkgs/filters.js"></script>
@@ -393,13 +528,18 @@
         <script src="/scripts/engine/engine.js"></script>
 
         <script src="/scripts/lobby/engine.js"></script>
+        <script src="/scripts/lobby/characters.js"></script>
+        <script src="/scripts/lobby/enemy_preview.js"></script>
+        <script src="/scripts/lobby/leaderboard.js"></script>
         <script src="/scripts/lobby/servers.js"></script>
         <script src="/scripts/lobby/default_name.js"></script>
         <script src="/scripts/lobby/play.js"></script>
+        <script src="/scripts/lobby/screens.js"></script>
+        <script src="/scripts/lobby/auth_panels.js"></script>
         <script>
-            account_ready.then(() => {
-                init_lobby();
+            const lobby_ready = account_ready.then(() => {
                 load_servers();
+                return init_lobby();
             });
         </script>
     </body>

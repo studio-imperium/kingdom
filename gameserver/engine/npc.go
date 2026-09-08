@@ -64,6 +64,11 @@ func (npc *Npc) Death() {
 	lootPool := GetLootData(data.Loot)
 	SBThreshold := min(float32(200), data.Health/10.0)
 
+	for id := range npc.damage {
+		if char := npc.instance.Characters[id]; char != nil {
+			char.AwardExp(data.Exp)
+		}
+	}
 	for id, char := range npc.nearby {
 		damage, ok := npc.damage[id]
 		for _, loot := range lootPool {

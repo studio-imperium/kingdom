@@ -32,8 +32,12 @@ async function restore_session() {
   const token = storage.getItem(key)
   if (!token) return guest_session()
   try {
-    const session = await account_request("/players/session", undefined, token)
+    let session = await account_request("/players/session", undefined, token)
     if (session.valid !== true) throw new Error("Invalid session response")
+    if (!session.guest && !session.data.characters.length) {
+      await account_request("/character/new", undefined, token).catch(error => { if (error.status !== 409) throw error })
+      session = await account_request("/players/session", undefined, token)
+    }
     return account_session = { ...session, token }
   } catch (error) {
     if (error.status !== 401) throw error // Keep the token on network/server failures.
@@ -42,13 +46,16 @@ async function restore_session() {
   }
 }
 
-async function login(email, password) {
+async function authenticate(email, password, endpoint) {
   await account_ready
-  const { token } = await account_request("/login", { email, password })
+  const { token } = await account_request(endpoint, { email, password })
   if (typeof token !== "string" || !/^[a-f0-9]{64}$/i.test(token)) throw new Error("Invalid session token response")
   localStorage.setItem(session_token_key, token)
   return restore_session()
 }
+
+function login(email, password) { return authenticate(email, password, "/login") }
+function register(email, password) { return authenticate(email, password, "/register") }
 
 async function logout() {
   await account_ready
@@ -57,11 +64,12 @@ async function logout() {
     if (token) await account_request("/logout", undefined, token)
   } catch (error) {
     if (error.status !== 401) throw error
-  } finally {
-    localStorage.removeItem(session_token_key)
-    sessionStorage.removeItem(guest_token_key)
-    account_session = null
   }
+  localStorage.removeItem(session_token_key)
+  sessionStorage.removeItem(guest_token_key)
+  localStorage.removeItem("kingdom.player_name")
+  sessionStorage.removeItem("kingdom.player_name")
+  account_session = null
   return guest_session()
 }
 

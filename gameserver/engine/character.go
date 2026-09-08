@@ -21,6 +21,8 @@ type Character struct {
 	Speed     float32
 	Power     float32
 	Reload    float32
+	Level     int64
+	Exp       int64
 
 	inventory      map[uint8]uint8
 	send           chan<- []byte
@@ -37,6 +39,9 @@ type Character struct {
 
 type CharacterData struct {
 	Id        int64           `json:"id,string"`
+	Username  string          `json:"username"`
+	Level     int64           `json:"level,string"`
+	Exp       int64           `json:"exp,string"`
 	Dead      bool            `json:"dead"`
 	Hand      uint8           `json:"hand"`
 	Head      uint8           `json:"head"`
@@ -63,7 +68,7 @@ func (c *Character) Damage(amount float32) {
 		binary.Write(data, binary.LittleEndian, c.id)
 		packet := data.Bytes()
 
-		c.Send(packet)
+		c.sendToNearby(packet, true)
 	}
 
 	c.SetHealth(c.health)
@@ -294,6 +299,7 @@ func (character *Character) Pack() []byte {
 func DefaultCharacter(instance *Engine, send chan<- []byte, id uint32) *Character {
 	return &Character{
 		id:     id,
+		Level:  1,
 		x:      0,
 		y:      0,
 		angle:  0,

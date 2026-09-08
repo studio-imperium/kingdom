@@ -46,6 +46,8 @@ func (engine *Engine) HandlePacket(packet Packet) {
 		character.finished = packet.Finished
 		if saved := packet.Character; saved != nil {
 			character.hand, character.head, character.body, character.inventory = saved.Hand, saved.Head, saved.Body, saved.Inventory
+			character.Exp = max(saved.Exp, 0)
+			character.Level = LevelFromExp(character.Exp)
 		}
 		engine.Characters[packet.ID] = character
 		engine.addView(packet.ID)

@@ -1,4 +1,4 @@
-const addr = "server.kingdomcrushers.io"
+const addr = sessionStorage.getItem("kingdom.server") || "server.kingdomcrushers.io"
 const prefixs = ["wss", "https"]
 // const addr = "localhost:8082"
 // const prefixs = ["ws", "http"]
@@ -34,12 +34,14 @@ function get_character(id) {
 }
 
 function handshake() {
-  token = (Math.random() * 0x100000000) >>> 0
-  const buffer = new ArrayBuffer(5)
+  const name = new TextEncoder().encode(sessionStorage.getItem("kingdom.player_name") || "Guest")
+  const buffer = new ArrayBuffer(41 + name.length)
   const data = new DataView(buffer)
 
   data.setUint8(0, HANDSHAKE)
-  data.setUint32(1, token, true)
+  new Uint8Array(buffer, 1, 32).set(account_session.token.match(/../g).map(byte => parseInt(byte, 16)))
+  data.setBigInt64(33, BigInt(account_session.guest ? 0 : sessionStorage.getItem("kingdom.character_id") || 0), true)
+  new Uint8Array(buffer, 41).set(name)
 
   socket.send(data)
 }
@@ -64,6 +66,7 @@ function set_character(data) {
 
   const inventory = {}
   const slots = data.getUint8(26)
+  token = data.getUint32(27 + slots * 2, true)
   for (let i = 0; i < slots; i++) {
     let offset = i * 2
     let slot = data.getUint8(27 + offset)
@@ -283,20 +286,13 @@ function set_message(data) {
   const n = data.getUint8(offset)
   offset += 1
 
-  let sender = ""
-  for (let i = 0; i < n; i++) {
-    sender += String.fromCharCode(data.getUint8(offset))
-    offset++
-  }
+  const sender = new TextDecoder().decode(new Uint8Array(data.buffer, data.byteOffset + offset, n))
+  offset += n
 
   const m = data.getUint8(offset)
   offset += 1
 
-  let msg = ""
-  for (let i = 0; i < m; i++) {
-    msg += String.fromCharCode(data.getUint8(offset))
-    offset++
-  }
+  const msg = new TextDecoder().decode(new Uint8Array(data.buffer, data.byteOffset + offset, m))
 
   add_message(id, msg, sender)
 }
@@ -340,15 +336,15 @@ function select_slot(idx) {
 }
 
 function send_message(msg) {
-  const n = msg.length
+  const message = new TextEncoder().encode(msg)
+  const n = message.length
+  if (n > 255) return
   const buffer = new ArrayBuffer(2 + n)
   const data = new DataView(buffer)
 
   data.setUint8(0, CHAT_MESSAGE)
   data.setUint8(1, n)
-  for (let i = 0; i < n; i++) {
-    data.setUint8(i + 2, msg.charCodeAt(i))
-  }
+  new Uint8Array(buffer, 2).set(message)
 
   socket.send(data)
 }
@@ -374,7 +370,9 @@ function drop_item(slot) {
   socket.send(data)
 }
 
-function connect() {
+async function connect() {
+  await account_ready
+  if (!account_session) return
   socket = new WebSocket(prefixs[0] + "://" + addr + "/connect")
   socket.binaryType = "arraybuffer"
 
@@ -416,6 +414,9 @@ function connect() {
         break
       case LOOT_LOOTED:
         loot_loot(data)
+        break
+      case CHARACTER_DEAD:
+        location.href = "/"
         break
       default:
         console.log("Bad packet recieved: ", packet_type)

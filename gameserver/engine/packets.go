@@ -27,6 +27,8 @@ type Packet struct {
 	Username               string
 	Admin                  bool
 	Send                   chan<- []byte
+	Character              *CharacterData
+	Finished               chan<- CharacterData
 	X, Y, TargetX, TargetY float32
 	Angle                  uint16
 	Slot, From             uint8
@@ -41,6 +43,10 @@ func (engine *Engine) HandlePacket(packet Packet) {
 		}
 		character := DefaultCharacter(engine, packet.Send, packet.ID)
 		character.characterID, character.username, character.admin = packet.CharacterID, packet.Username, packet.Admin
+		character.finished = packet.Finished
+		if saved := packet.Character; saved != nil {
+			character.hand, character.head, character.body, character.inventory = saved.Hand, saved.Head, saved.Body, saved.Inventory
+		}
 		engine.Characters[packet.ID] = character
 		engine.addView(packet.ID)
 		if engine.Map != nil {

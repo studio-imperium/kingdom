@@ -5,7 +5,9 @@ import (
 	"errors"
 	"gameserver/engine"
 	"net/http"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/gorilla/websocket"
 )
@@ -25,13 +27,18 @@ func CreateClient(w http.ResponseWriter, r *http.Request) (*Client, error) {
 		client.Close()
 		return nil, err
 	}
-	// HANDSHAKE + 32-byte session token + little-endian int64 character ID.
-	if messageType != websocket.BinaryMessage || len(data) != 41 || data[0] != engine.HANDSHAKE {
+	// HANDSHAKE + 32-byte session token + little-endian int64 character ID + UTF-8 name (1-255 bytes).
+	if messageType != websocket.BinaryMessage || len(data) < 42 || len(data) > 296 || data[0] != engine.HANDSHAKE {
 		client.Close()
 		return nil, errors.New("invalid handshake")
 	}
 	copy(client.Token[:], data[1:33])
 	client.CharacterID = int64(binary.LittleEndian.Uint64(data[33:]))
+	client.Username = strings.TrimSpace(string(data[41:]))
+	if client.Username == "" || !utf8.ValidString(client.Username) {
+		client.Close()
+		return nil, errors.New("invalid player name")
+	}
 	if client.CharacterID < 0 {
 		client.Close()
 		return nil, errors.New("invalid character ID")

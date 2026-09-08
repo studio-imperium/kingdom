@@ -28,7 +28,7 @@ func writeError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, redis.Nil), errors.Is(err, sessions.ErrInvalidCredentials), errors.Is(err, sql.ErrNoRows):
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid credentials or session"})
-	case errors.Is(err, sessions.ErrNameRequired), errors.Is(err, sessions.ErrCharacterLimit):
+	case errors.Is(err, sessions.ErrCharacterLimit):
 		writeJSON(w, http.StatusConflict, map[string]string{"error": err.Error()})
 	case errors.As(err, &database_error) && database_error.Code == "23505":
 		writeJSON(w, http.StatusConflict, map[string]string{"error": "record already exists"})
@@ -53,7 +53,6 @@ func readToken(w http.ResponseWriter, r *http.Request) (sessions.SessionToken, b
 func auth(register bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var input struct {
-			Name     string `json:"name"`
 			Email    string `json:"email"`
 			Password string `json:"password"`
 		}
@@ -66,16 +65,16 @@ func auth(register bool) http.HandlerFunc {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "expected one JSON object"})
 			return
 		}
-		input.Name, input.Email = strings.TrimSpace(input.Name), strings.TrimSpace(input.Email)
-		if input.Email == "" || input.Password == "" || (register && input.Name == "") {
-			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "email and password are required; registration also requires name"})
+		input.Email = strings.TrimSpace(input.Email)
+		if input.Email == "" || input.Password == "" {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "email and password are required"})
 			return
 		}
 		var token sessions.SessionToken
 		var err error
 		status := http.StatusOK
 		if register {
-			token, err = sessions.Signup(input.Name, input.Email, input.Password)
+			token, err = sessions.Signup(input.Email, input.Password)
 			status = http.StatusCreated
 		} else {
 			token, err = sessions.Login(input.Email, input.Password)
@@ -98,6 +97,15 @@ func logout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func guest(w http.ResponseWriter, r *http.Request) {
+	token, err := sessions.Guest()
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]string{"token": hex.EncodeToString(token[:])})
 }
 
 func create_character(w http.ResponseWriter, r *http.Request) {
@@ -126,12 +134,24 @@ func verify_token(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	email, err := gameservers.ValidSession(token)
+	session, err := sessions.GetSession(token)
 	if err != nil {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"valid": true, "email": email})
+	var report gameservers.Gameserver
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&report); err != nil && err != io.EOF {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "expected a server report JSON object"})
+		return
+	}
+	if report.Address != "" && report.PlayersOnline >= 0 {
+		gameservers.ReportPlayers(report.Address, report.PlayersOnline)
+	}
+	writeJSON(w, http.StatusOK, session)
+}
+
+func get_session(w http.ResponseWriter, r *http.Request) {
+	verify_token(w, r)
 }
 
 func update_player(w http.ResponseWriter, r *http.Request) {

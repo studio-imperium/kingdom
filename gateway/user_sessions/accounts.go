@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"gateway/data"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -15,7 +16,19 @@ type SessionToken [sha256.Size]byte
 
 var ErrInvalidCredentials = errors.New("invalid email or password")
 
-var create_user_query string = `INSERT INTO game.users ("name", email, password) VALUES ($1, $2, $3)`
+func Guest() (SessionToken, error) {
+	var token SessionToken
+	rand.Read(token[:])
+	key := "session:token:" + hex.EncodeToString(token[:])
+	_, err := data.Cache.TxPipelined(context.Background(), func(pipe redis.Pipeliner) error {
+		pipe.HSet(context.Background(), key, "email", "", "guest", true, "active", false)
+		pipe.Expire(context.Background(), key, 24*time.Hour)
+		return nil
+	})
+	return token, err
+}
+
+var create_user_query string = `INSERT INTO game.users (email, password) VALUES ($1, $2)`
 var find_user_query string = "SELECT EXISTS (SELECT 1 FROM game.users WHERE email = $1 AND password = $2)"
 var replace_session_query string = `
 	local old = redis.call('GET', KEYS[1])
@@ -25,10 +38,10 @@ var replace_session_query string = `
 	return 1
 `
 
-func Signup(name, email, password string) (SessionToken, error) {
+func Signup(email, password string) (SessionToken, error) {
 	var hashed_password SessionToken = sha256.Sum256([]byte(password))
 
-	_, err := data.DB.ExecContext(context.Background(), create_user_query, name, email, hashed_password[:])
+	_, err := data.DB.ExecContext(context.Background(), create_user_query, email, hashed_password[:])
 	if err != nil {
 		return SessionToken{}, err
 	}
@@ -71,7 +84,13 @@ func CheckToken(token SessionToken) (string, error) {
 	email, err := data.Cache.HGet(context.Background(), key, "email").Result()
 	// Older sessions store the email directly instead of using a hash.
 	if redis.HasErrorPrefix(err, "WRONGTYPE") {
-		return data.Cache.Get(context.Background(), key).Result()
+		email, err = data.Cache.Get(context.Background(), key).Result()
+	}
+	if err == nil && email == "" {
+		guest, guestErr := data.Cache.HGet(context.Background(), key, "guest").Bool()
+		if guestErr != nil || !guest {
+			return "", ErrInvalidCredentials
+		}
 	}
 	return email, err
 }

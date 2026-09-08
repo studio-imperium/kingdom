@@ -7,22 +7,24 @@ import (
 	"gateway/data"
 )
 
-var ErrNameRequired = errors.New("set an account name before creating a character")
 var ErrCharacterLimit = errors.New("character limit reached")
 
-var lock_character_user_query string = `SELECT "name" FROM game.users WHERE email = $1 FOR UPDATE`
-var count_characters_query string = `SELECT COUNT(*) FROM game."character" WHERE "name" = $1 AND dead IS NOT TRUE`
-var create_character_query string = `INSERT INTO game."character" (id, "name", dead, inventory) VALUES ($1, $2, false, $3)`
+var lock_character_user_query string = `SELECT id FROM game.users WHERE email = $1 FOR UPDATE`
+var count_characters_query string = `SELECT COUNT(*) FROM game."character" WHERE user_id = $1 AND dead IS NOT TRUE`
+var create_character_query string = `INSERT INTO game."character" (id, user_id, dead, inventory) VALUES ($1, $2, false, $3)`
 
 func NewCharacter(token SessionToken) error {
 	// create a new character
 	var ctx context.Context = context.Background()
-	var name sql.NullString
+	var user_id int64
 	var character_count int
 
 	email, err := CheckToken(token)
 	if err != nil {
 		return err
+	}
+	if email == "" {
+		return ErrInvalidCredentials
 	}
 
 	tx, err := data.DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
@@ -32,15 +34,12 @@ func NewCharacter(token SessionToken) error {
 	defer tx.Rollback()
 
 	// Serialize character creation for this account before checking the limit.
-	err = tx.QueryRowContext(ctx, lock_character_user_query, email).Scan(&name)
+	err = tx.QueryRowContext(ctx, lock_character_user_query, email).Scan(&user_id)
 	if err != nil {
 		return err
 	}
-	if !name.Valid || name.String == "" {
-		return ErrNameRequired
-	}
 
-	err = tx.QueryRowContext(ctx, count_characters_query, name.String).Scan(&character_count)
+	err = tx.QueryRowContext(ctx, count_characters_query, user_id).Scan(&character_count)
 	if err != nil {
 		return err
 	}
@@ -57,7 +56,7 @@ func NewCharacter(token SessionToken) error {
 	}
 	inventory[24], inventory[25], inventory[26] = character.Head, character.Body, character.Hand
 
-	_, err = tx.ExecContext(ctx, create_character_query, character.Id, name.String, inventory[:])
+	_, err = tx.ExecContext(ctx, create_character_query, character.Id, user_id, inventory[:])
 	if err != nil {
 		return err
 	}

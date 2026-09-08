@@ -25,8 +25,25 @@ func ProcessConnection(w http.ResponseWriter, r *http.Request) {
 	}
 	var token gateway.SessionToken = client.Token
 	defer client.Close()
-	if !gateway.VerifyPlayer(token) {
+	session, err := gateway.VerifyPlayer(token, PlayersOnline()+1)
+	if err != nil {
 		return
+	}
+	var saved *engine.CharacterData
+	var finished chan engine.CharacterData
+	if session.Guest {
+		client.CharacterID = 0 // Guests always join with an unsaved default character.
+	} else {
+		for i := range session.Data.Characters {
+			if session.Data.Characters[i].Id == client.CharacterID {
+				saved = &session.Data.Characters[i]
+				break
+			}
+		}
+		if saved == nil {
+			return
+		}
+		finished = make(chan engine.CharacterData, 1)
 	}
 
 	players_mutex.Lock()
@@ -40,9 +57,14 @@ func ProcessConnection(w http.ResponseWriter, r *http.Request) {
 	players_mutex.Unlock()
 
 	output := make(chan []byte, 256)
-	world.Input <- engine.Packet{Type: engine.JOIN, ID: client.ID, CharacterID: client.CharacterID, Username: "Guest_" + strconv.FormatUint(uint64(client.ID), 10), Send: output}
+	world.Input <- engine.Packet{Type: engine.JOIN, ID: client.ID, CharacterID: client.CharacterID, Username: client.Username, Send: output, Character: saved, Finished: finished}
 	client.Run(world.Input, output)
 	world.Input <- engine.Packet{Type: engine.LEAVE, ID: client.ID}
+	if finished != nil {
+		if err := gateway.UpdateCharacter(token, <-finished); err != nil {
+			log.Print(err)
+		}
+	}
 
 	players_mutex.Lock()
 	delete(connected_players, token)

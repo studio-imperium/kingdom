@@ -33,11 +33,11 @@ function add_message(id, msg, sender) {
 
   let label = document.createElement("label")
   label.className = "outlined_text"
-  label.innerHTML = sender
+  label.textContent = sender
 
   let contents = document.createElement("p")
   contents.className = "outlined_text"
-  contents.innerHTML = msg
+  contents.textContent = msg
 
   if (id > 1) {
     message.appendChild(label)

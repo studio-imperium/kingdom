@@ -11,6 +11,7 @@ type Client struct {
 	ID          uint32
 	Token       gateway.SessionToken
 	CharacterID int64
+	Username    string
 	conn        *websocket.Conn
 	done        chan struct{}
 	close_once  sync.Once

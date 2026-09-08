@@ -12,6 +12,52 @@ func joinPlayer(world *Engine, id uint32) chan []byte {
 	return output
 }
 
+func TestJoinNameInChat(t *testing.T) {
+	if err := InitAssets(); err != nil {
+		t.Fatal(err)
+	}
+	world := CreateEngine()
+	output := make(chan []byte, 256)
+	world.HandlePacket(Packet{Type: JOIN, ID: 1, Username: "PeckishNatureSpirit", Send: output})
+	<-output // Initial character state.
+	world.HandlePacket(Packet{Type: CHAT_MESSAGE, ID: 1, Message: "hello"})
+	message := <-output
+	if message[0] != CHAT_MESSAGE || string(message[6:6+int(message[5])]) != "PeckishNatureSpirit" {
+		t.Fatal("chat did not use the join name")
+	}
+}
+
+func TestFinalCharacterState(t *testing.T) {
+	if err := InitAssets(); err != nil {
+		t.Fatal(err)
+	}
+	for _, dead := range []bool{false, true} {
+		world := CreateEngine()
+		output, finished := make(chan []byte, 256), make(chan CharacterData, 1)
+		saved := &CharacterData{Id: 1234567890123456789, Body: 1, Inventory: map[uint8]uint8{0: 8}}
+		world.HandlePacket(Packet{Type: JOIN, ID: 1, CharacterID: saved.Id, Character: saved, Send: output, Finished: finished})
+		world.ChangeInventory(1, 1, 0)
+		if dead {
+			world.Characters[1].Damage(1000)
+			world.Tick(time.Millisecond)
+		} else {
+			world.HandlePacket(Packet{Type: LEAVE, ID: 1})
+		}
+		select {
+		case state := <-finished:
+			if state.Id != saved.Id || state.Dead != dead || state.Inventory[1] != 8 || state.Inventory[0] != 0 {
+				t.Fatalf("bad final state: %+v", state)
+			}
+		case <-time.After(time.Second):
+			t.Fatal("no final character state")
+		}
+		world.HandlePacket(Packet{Type: LEAVE, ID: 1})
+		if len(finished) != 0 {
+			t.Fatal("character was saved twice")
+		}
+	}
+}
+
 func TestVisibilityDoesNotChangeWorld(t *testing.T) {
 	if err := InitAssets(); err != nil {
 		t.Fatal(err)

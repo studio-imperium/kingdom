@@ -32,6 +32,16 @@ type Character struct {
 	admin          bool
 	disconnected   bool
 	Dead           bool
+	finished       chan<- CharacterData
+}
+
+type CharacterData struct {
+	Id        int64           `json:"id,string"`
+	Dead      bool            `json:"dead"`
+	Hand      uint8           `json:"hand"`
+	Head      uint8           `json:"head"`
+	Body      uint8           `json:"body"`
+	Inventory map[uint8]uint8 `json:"inventory"`
 }
 
 func (c *Character) GetX() float32      { return c.x }

@@ -20,9 +20,9 @@ var player_activity_query string = `
 `
 var update_character_query = `
 	UPDATE game."character" AS c
-	SET inventory = $1
+	SET inventory = $1, dead = $4
 	FROM game.users AS u
-	WHERE c.id = $2 AND c."name" = u."name" AND u.email = $3
+	WHERE c.id = $2 AND c.user_id = u.id AND u.email = $3 AND c.dead IS NOT TRUE
 	RETURNING c.id
 `
 
@@ -39,6 +39,9 @@ func UpdateCharacter(token sessions.SessionToken, character sessions.Character) 
 	if err != nil {
 		return err
 	}
+	if email == "" {
+		return nil // Guest progress is never persisted.
+	}
 
 	// Bytes 0-23 are backpack slots; 24-26 are head, body, and hand.
 	var inventory [27]byte
@@ -50,6 +53,6 @@ func UpdateCharacter(token sessions.SessionToken, character sessions.Character) 
 	}
 	inventory[24], inventory[25], inventory[26] = character.Head, character.Body, character.Hand
 
-	updated_char := data.DB.QueryRowContext(context.Background(), update_character_query, inventory[:], character.Id, email)
+	updated_char := data.DB.QueryRowContext(context.Background(), update_character_query, inventory[:], character.Id, email, character.Dead)
 	return updated_char.Scan(&character.Id)
 }

@@ -10,7 +10,7 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-var leaderboard_query = `SELECT id, level, exp, COALESCE(dead, false), username, inventory FROM game."character" ORDER BY level DESC, exp DESC, id ASC LIMIT 100`
+var leaderboard_query = `SELECT id, level, exp, COALESCE(dead, false), COALESCE(username, ''), inventory FROM game."character" ORDER BY level DESC, exp DESC, id ASC LIMIT 100`
 
 type LeaderboardCharacter struct {
 	Id       int64  `json:"id,string"`

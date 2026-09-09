@@ -95,7 +95,7 @@
 
             .enemy_preview_slot { width: 100%; margin-bottom: -2rem; }
 
-            #leaderboard_screen .center_container { width: 42rem; }
+            #leaderboard_screen .center_container { max-height: calc(100dvh - 2rem); }
             #leaderboard_screen .panel { align-items: stretch; max-height: calc(100dvh - 2rem); }
             #leaderboard_screen h3 { margin: 0 0 4px; }
             #leaderboard_screen p { margin: 0 0 12px; }
@@ -153,6 +153,15 @@
                 outline: none !important;
             }
 
+            .topleft_container .button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; white-space: nowrap; }
+            .topleft_container .slot_sprite { flex-shrink: 0; margin: 0 15px; }
+
+            .button_square {
+                width: 64px;
+                height: 64px;
+                min-width: 64px !important;
+                margin: 3px;
+            }
             .button {
                 font-family: "myriad-pro";
                 font-weight: 400;
@@ -421,6 +430,17 @@
     </head>
     <body style="margin: 0">
         <div id="default_screen" class="lobby_screen">
+            <div class="topleft_container">
+                <button class="button" style="margin: 3px;" onclick="location.href='/maps.html'">
+                    Map editor
+                    <span class="slot_sprite" style="display: inline-block; background-position: -10px -180px; margin-right: 6px;"></span>
+                </button>
+                <button class="button" style="margin: 3px;">
+                    Discord
+                    <span class="slot_sprite" style="display: inline-block; background-position: -20px -180px; margin-right: 6px;"></span>
+                </button>
+            </div>
+
             <div class="topright_container">
                 <button id="login_button" class="button" onclick="switch_screen('login')">Login</button>
                 <button id="logout_button" class="button hidden" onclick="switch_screen('logout')">Logout</button>
@@ -498,14 +518,19 @@
 
         <div id="leaderboard_screen" class="lobby_screen hidden">
             <div class="center_container">
-                <h3>Leaderboard</h3>
-                <p>Top 100 characters (dead or alive)</p>
-                <div class="leaderboard_scroll" tabindex="0" aria-label="Leaderboard">
-                    <table>
-                        <thead><tr><th scope="col">Rank</th><th scope="col">Username</th><th scope="col">Character</th><th scope="col">Level</th></tr></thead>
-                        <tbody id="leaderboard_rows"></tbody>
-                    </table>
+                <div class="panel">
+                    <h3>Leaderboard</h3>
+                    <p>Top 100 characters (dead or alive)</p>
+                    <div class="leaderboard_scroll" tabindex="0" aria-label="Leaderboard">
+                        <table>
+                            <thead><tr><th scope="col">Rank</th><th scope="col">Username</th><th scope="col">Character</th><th scope="col">Level</th></tr></thead>
+                            <tbody id="leaderboard_rows">
+
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
+                <button id="leaderboard_retry" class="button hidden" onclick="load_leaderboard()">Retry</button>
                 <button class="button" onclick="switch_screen('default')">Back</button>
             </div>
         </div>

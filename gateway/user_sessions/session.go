@@ -10,7 +10,7 @@ import (
 )
 
 var session_user_query string = `SELECT id FROM game.users WHERE email = $1`
-var session_characters_query string = `SELECT id, COALESCE(dead, false), inventory, level, exp, username FROM game."character" WHERE user_id = $1 ORDER BY id`
+var session_characters_query string = `SELECT id, COALESCE(dead, false), inventory, level, exp, COALESCE(username, '') FROM game."character" WHERE user_id = $1 ORDER BY id`
 
 func GetSession(token SessionToken) (Session, error) {
 	var session Session

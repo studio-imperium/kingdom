@@ -1,0 +1,144 @@
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Map editor</title>
+        <link rel="stylesheet" href="https://use.typekit.net/jbe5uxg.css">
+        <style>
+            html {
+                font-family: "myriad-pro";
+                font-weight: 400;
+                color: rgb(211, 211, 211);
+                image-rendering: pixelated !important;
+            }
+            .panel {
+                margin-bottom: 6px;
+                font-family: "myriad-pro";
+                font-weight: 400;
+                font-size: 1rem;
+                color: rgb(211, 211, 211);
+
+                min-width: 8rem;
+
+                background-color: #636363;
+                border-image: url("/assets/ui/border.png") 9 / 9px / 0 round;
+                padding: 6px;
+                border-width: 12px;
+                border-style: solid;
+                box-sizing: border-box;
+                image-rendering: pixelated;
+
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+            }
+            .button {
+                font-family: "myriad-pro";
+                font-weight: 400;
+                font-size: 1rem;
+                color: rgb(211, 211, 211);
+
+                min-width: 8rem;
+
+                background-color: #636363;
+                border-image: url("/assets/ui/border.png") 9 / 9px / 0 round;
+                padding: 6px;
+                border-width: 12px;
+                border-style: solid;
+                box-sizing: border-box;
+                image-rendering: pixelated;
+            }
+            .button:hover {
+                color: #eee;
+                background-color: #535353;
+            }
+
+            .tools { position: absolute; top: 1rem; left: 1rem; min-width: 0; }
+            .selection { position: absolute; bottom: 1rem; left: 50%; transform: translateX(-50%); flex-direction: row; flex-wrap: wrap; width: max-content; max-width: calc(100% - 2rem); }
+            .buttons { position: absolute; top: 1rem; right: 1rem; display: flex; flex-direction: column; gap: 6px; }
+            .tool, .icon {
+                background: transparent;
+                padding: 0;
+                margin: 16px;
+                width: 9px;
+                height: 9px;
+                flex-shrink: 0;
+                scale: 4;
+                image-rendering: pixelated;
+                border: 0;
+                filter: drop-shadow(0.5px 0 0 #2A2A2A) drop-shadow(-0.5px 0 0 #2A2A2A)
+                    drop-shadow(0 0.5px 0 #2A2A2A) drop-shadow(0 -0.5px 0 #2A2A2A);
+            }
+            .icon {
+                width: 8px;
+                height: 8px;
+                background-image: url('/assets/assets.png');
+                background-repeat: no-repeat;
+                background-size: 512px 512px;
+            }
+            .tool:hover, .icon:hover { outline: 0.5px solid white; }
+            .selected_tool, .selected { outline: 1px solid white !important; }
+        </style>
+    </head>
+    <body style="margin: 0;">
+        <table class="panel tools">
+            <tr>
+                <td>
+                    <button title="1 tile brush" onclick="select_tool('brush_1', this)" class="tool selected_tool" style="background-image: url(/assets/ui/brush_1.png);"></button>
+                </td>
+            </tr>
+             <tr>
+                <td>
+                    <button title="2 tile brush" onclick="select_tool('brush_2', this)" class="tool" style="background-image: url(/assets/ui/brush_2.png);"></button>
+                </td>
+            </tr>
+             <tr>
+                <td>
+                    <button title="3 tile brush" onclick="select_tool('brush_3', this)" class="tool" style="background-image: url(/assets/ui/brush_3.png);"></button>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <button title="Pan" onclick="select_tool('move', this)" class="tool" style="background-image: url(/assets/ui/move.png);"></button>
+                </td>
+            </tr>
+        </table>
+        <div class="panel selection" id="tile_selection"></div>
+        <div class="buttons">
+            <button class="button" onclick="export_map()">Export</button>
+            <button class="button" onclick="reset_map()">
+                Reset
+            </button>
+        </div>
+
+        <script src="/scripts/pkgs/pixi.js"></script>
+        <script src="/scripts/data.js"></script>
+        <script src="/scripts/maps/main.js"></script>
+        <script src="/scripts/graphics/load_textures.js"></script>
+        <script src="/scripts/graphics/tiles.js"></script>
+        <script src="/scripts/maps/draw.js"></script>
+        <script src="/scripts/maps/export.js"></script>
+        <script>
+            let selected_tool = 'brush_1'
+            function select_tool(tool, element) {
+                selected_tool = tool
+                document.querySelector(".selected_tool").classList.remove("selected_tool")
+                element.classList.add("selected_tool")
+            }
+
+            let selected_tile = 1
+            function select(tile, element) {
+                selected_tile = tile
+                document.querySelector(".selected").classList.remove("selected")
+                element.classList.add("selected")
+            }
+            init()
+
+            function reset_map() {
+                for (const { mesh } of Object.values(tile_map)) mesh.destroy()
+                tile_map = {}
+            }
+        </script>
+    </body>
+</html>

@@ -4,7 +4,7 @@ async function init_lobby() {
   app.canvas.style.imageRendering = "pixelated"
   app.stage.scale.set(40)
   await load_textures()
-  const map = new DataView(await (await fetch("/assets/lobby.map")).arrayBuffer())
+  const map = new DataView(await (await fetch("/assets/sandy.map")).arrayBuffer())
   let offset = 2
   for (let i = 0; i < map.getUint16(0, true); i++) offset += 6 + map.getUint8(offset + 5) * 2
   const map_size = map.getUint16(offset, true), center = Math.floor(map_size / 2)

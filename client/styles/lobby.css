@@ -26,6 +26,7 @@ html {
     align-items: start;
 
     padding: 4px;
+    margin-bottom: -16px;
 }
 .playerlist .group {
     display: flex;

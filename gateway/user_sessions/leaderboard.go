@@ -59,7 +59,7 @@ func GetLeaderboard() (json.RawMessage, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := data.Cache.Set(ctx, "leaderboard:all_time:v2", encoded, 30*time.Minute).Err(); err != nil {
+	if err := data.Cache.Set(ctx, "leaderboard:all_time:v2", encoded, 10*time.Second).Err(); err != nil {
 		return nil, err
 	}
 	return encoded, nil

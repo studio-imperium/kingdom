@@ -1,80 +1,116 @@
-const session_token_key = "kingdom.session_token"
-const guest_token_key = "kingdom.guest_token"
-let account_session = null
+let account = null
 
-async function account_request(path, body, token) {
-  const response = await fetch(`https://gateway.kingdomcrushers.io${path}`, {
+function authorized_body(body, token=localStorage.getItem("kingdom.token")) {
+  return {
     method: "POST",
     headers: { ...(body && { "Content-Type": "application/json" }), ...(token && { Authorization: `Bearer ${token}` }) },
     body: body && JSON.stringify(body),
     cache: "no-store",
     signal: AbortSignal.timeout(5000),
-  })
-  if (response.status === 204) return null
-  const data = await response.json().catch(() => null)
-  if (!response.ok) throw Object.assign(new Error(data?.error || `Gateway request failed (${response.status})`), { status: response.status })
-  if (!data) throw new Error("Invalid gateway response")
-  return data
+  }
 }
 
-// Only expose a session after the gateway has validated the cached token.
+async function account_request(path, body) {
+  const response = await fetch(
+    `https://gateway.kingdomcrushers.io${path}`,
+    authorized_body(body)
+  )
+  return await response.json()
+}
+
 async function guest_session() {
-  const { token } = await account_request("/player/guest")
-  if (typeof token !== "string" || !/^[a-f0-9]{64}$/i.test(token)) throw new Error("Invalid session token response")
-  sessionStorage.setItem(guest_token_key, token)
-  return account_session = { valid: true, guest: true, email: "", token }
+  const session = await account_request("/player/guest")
+  const token = session.token
+
+  localStorage.setItem("kingdom.token", token)
+  account = session
+
+  document.getElementById("login_button").classList.remove("hidden")
+  document.getElementById("logout_button").classList.add("hidden")
+
+  return account
 }
 
 async function restore_session() {
-  account_session = null
-  const storage = localStorage.getItem(session_token_key) ? localStorage : sessionStorage
-  const key = storage === localStorage ? session_token_key : guest_token_key
-  const token = storage.getItem(key)
-  if (!token) return guest_session()
-  try {
-    let session = await account_request("/players/session", undefined, token)
-    if (session.valid !== true) throw new Error("Invalid session response")
-    if (!session.guest && !session.data.characters.length) {
-      await account_request("/character/new", undefined, token).catch(error => { if (error.status !== 409) throw error })
-      session = await account_request("/players/session", undefined, token)
-    }
-    return account_session = { ...session, token }
-  } catch (error) {
-    if (error.status !== 401) throw error // Keep the token on network/server failures.
-    storage.removeItem(key)
+  let session = await account_request("/players/session")
+
+  if (!session.valid) {
+    localStorage.removeItem("kingdom.token")
     return guest_session()
   }
+  if (!session.guest && !session.data.characters.length) {
+    await account_request("/character/new")
+    session = await account_request("/players/session")
+  }
+  account = session
+  document.getElementById("login_button").classList.add("hidden")
+  document.getElementById("logout_button").classList.remove("hidden")
+  await populate_graveyard()
 }
 
 async function authenticate(email, password, endpoint) {
-  await account_ready
-  const { token } = await account_request(endpoint, { email, password })
-  if (typeof token !== "string" || !/^[a-f0-9]{64}$/i.test(token)) throw new Error("Invalid session token response")
-  localStorage.setItem(session_token_key, token)
+  const session = await account_request(endpoint, { email, password })
+  localStorage.setItem("kingdom.token", session.token)
   return restore_session()
 }
 
-function login(email, password) { return authenticate(email, password, "/login") }
-function register(email, password) { return authenticate(email, password, "/register") }
+function login(email, password) {
+  return authenticate(email, password, "/login")
+}
+function register(email, password) {
+  return authenticate(email, password, "/register")
+}
 
 async function logout() {
-  await account_ready
-  const token = account_session?.token
-  try {
-    if (token) await account_request("/logout", undefined, token)
-  } catch (error) {
-    if (error.status !== 401) throw error
+  let token
+  if (token = localStorage.getItem("kingdom.token")) {
+    try {
+      await account_request("/logout", undefined, token)
+    } catch (error) {}
   }
-  localStorage.removeItem(session_token_key)
-  sessionStorage.removeItem(guest_token_key)
-  localStorage.removeItem("kingdom.player_name")
-  sessionStorage.removeItem("kingdom.player_name")
-  account_session = null
+
+  localStorage.removeItem("kingdom.token")
+  sessionStorage.removeItem("kingdom.token")
+  account = null
+
   return guest_session()
 }
 
-// Starts as soon as this script loads; callers can await account_ready.
-const account_ready = restore_session().catch(error => {
-  console.error("Unable to restore session:", error)
-  return null
-})
+async function submit_account(event, action) {
+  event.preventDefault()
+
+  const form = event.currentTarget
+  const error = form.querySelector('[role="alert"]')
+  const confirm = form.elements.password_confirmation
+
+  if (confirm && confirm.value != form.elements.password.value) {
+    confirm.setCustomValidity("Passwords do not match.")
+    confirm.reportValidity()
+    return
+  }
+
+  try {
+    if (action == "logout") {
+      await logout()
+    }
+    else {
+      let session
+      const email = form.elements.email.value.trim()
+      const password = form.elements.password.value
+
+      if (action == "register") {
+        session = await register(email, password)
+      } else {
+        session = await login(email, password)
+      }
+      if (!session?.valid || session.guest) {
+        throw new Error("Invalid credentials.")
+      }
+    }
+    form.reset()
+    switch_screen("home")
+  } catch (failure) {
+    error.textContent = failure.message
+    error.classList.remove("hidden")
+  }
+}

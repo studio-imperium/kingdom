@@ -46,8 +46,6 @@ function create_slot(idx) {
       idx == 24 ? character.head : idx == 25 ? character.body : inventory[idx]
     const data = item_data[item_id]
 
-    console.log(item_id)
-
     if (!data || item_id < 2) {
       event.preventDefault()
       return

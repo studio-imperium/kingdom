@@ -1,7 +1,10 @@
 const characters = {}
+const character_names = {}
+const name_layer = new PIXI.RenderLayer()
+app.stage.addChild(name_layer)
 
 class Character {
-  constructor(x, y, angle, health, hand, head, body) {
+  constructor(x, y, angle, health, hand, head, body, username = "") {
     this.object = build_character(hand, head, body)
     this.kit = (hand ? hand : 0) + head + body
     this.object.x = x
@@ -16,6 +19,12 @@ class Character {
     this.colorAnimator = new ColorAnimator(this.object)
 
     add_object(this.object)
+    this.nameplate = new PIXI.Text({ text: username, style: { fontFamily: "myriad-pro", fontSize: 16, fill: "white", stroke: { color: "#1f1f1f", width: 3 } } })
+    this.nameplate.anchor.set(0.5, 1)
+    this.nameplate.scale.set(1 / 48)
+    app.stage.addChild(this.nameplate)
+    name_layer.attach(this.nameplate)
+    this.tick()
   }
 
   update(x, y, angle, health, hand, head, body) {
@@ -54,7 +63,9 @@ class Character {
     }
   }
 
-  tick(deltaMS) {}
+  tick(deltaMS) {
+    this.nameplate.position.set(this.object.x, this.object.y - 0.8)
+  }
 
   damage() {
     this.colorAnimator.animate(0xffb3b3, 300)
@@ -68,6 +79,7 @@ class Character {
 
     setTimeout(() => {
       this.object.destroy()
+      this.nameplate.destroy()
       delete characters[id]
     }, 300)
   }

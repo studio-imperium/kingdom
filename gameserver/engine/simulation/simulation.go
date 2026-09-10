@@ -9,19 +9,21 @@ const RenderDistance = 16
 
 // A simulation contains only the packets visible to one player, never world entities.
 type Simulation struct {
-	Characters map[uint32][]byte
-	Npcs       map[uint32][]byte
-	Loot       map[uint32][]byte
-	Cells      map[uint16]bool
-	x, y       float32
+	Characters      map[uint32][]byte
+	Npcs            map[uint32][]byte
+	Loot            map[uint32][]byte
+	Cells           map[uint16]bool
+	KnownCharacters map[uint32]bool
+	x, y            float32
 }
 
 func CreateSimulation() *Simulation {
 	return &Simulation{
-		Characters: make(map[uint32][]byte),
-		Npcs:       make(map[uint32][]byte),
-		Loot:       make(map[uint32][]byte),
-		Cells:      make(map[uint16]bool),
+		Characters:      make(map[uint32][]byte),
+		Npcs:            make(map[uint32][]byte),
+		Loot:            make(map[uint32][]byte),
+		Cells:           make(map[uint16]bool),
+		KnownCharacters: make(map[uint32]bool),
 	}
 }
 

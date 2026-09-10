@@ -114,7 +114,7 @@ function set_world(data) {
     } else if (characters[id]) {
       characters[id].update(x, y, angle, health, hand, head, body)
     } else {
-      characters[id] = new Character(x, y, angle, health, hand, head, body)
+      characters[id] = new Character(x, y, angle, health, hand, head, body, character_names[id] || "")
     }
     offset += 19
   }
@@ -169,6 +169,17 @@ function set_world(data) {
       loots[id].update()
     } else {
       loots[id] = new Loot(which, x, y)
+    }
+  }
+
+  if (offset < data.byteLength) {
+    const count = data.getUint16(offset, true)
+    offset += 2
+    for (let i = 0; i < count; i++) {
+      const id = data.getUint32(offset, true), length = data.getUint8(offset + 4)
+      character_names[id] = new TextDecoder().decode(new Uint8Array(data.buffer, data.byteOffset + offset + 5, length))
+      if (characters[id]) characters[id].nameplate.text = character_names[id]
+      offset += 5 + length
     }
   }
 }

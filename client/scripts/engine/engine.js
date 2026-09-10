@@ -1,4 +1,6 @@
 const render_dist = 32
+const interpolation_delay = 300 // Milliseconds of buffered movement for remote players and NPCs.
+const stale_timeout = 1000
 const size = 2500
 const tiles = new Uint8Array(size * size)
 const added = new Uint8Array(size * size)
@@ -50,7 +52,7 @@ function start_engine() {
         colorAnimator.tick(deltaMS)
       }
 
-      if (Date.now() > interpolator.last_frame + 400) {
+      if (Date.now() > interpolator.last_frame + stale_timeout) {
         characters[id].kill(id)
       }
     }
@@ -62,7 +64,7 @@ function start_engine() {
         colorAnimator.tick(deltaMS)
       }
 
-      if (Date.now() > interpolator.last_frame + 400) {
+      if (Date.now() > interpolator.last_frame + stale_timeout) {
         npcs[id].kill(id)
       }
     }
@@ -76,7 +78,7 @@ function start_engine() {
         } else {
           object.scale.set(new_scale)
         }
-      } else if (Date.now() > last_update + 400) {
+      } else if (Date.now() > last_update + stale_timeout) {
         loots[id].kill(id)
       }
     }
@@ -153,7 +155,6 @@ class Interpolator {
   }
 
   lerp_angle_degrees(a, b, t) {
-    d1 * frame1[2] + d2 * frame2[2]
     const delta = ((b - a + 540) % 360) - 180
     return a + delta * t
   }
@@ -161,7 +162,7 @@ class Interpolator {
   tick(delta_ms) {
     const time = Date.now()
 
-    while (this.frames.length > 2) {
+    while (this.frames.length > 2 && this.frames[1][0] <= time) {
       this.frames.shift()
     }
     if (this.frames.length > 1) {
@@ -169,8 +170,8 @@ class Interpolator {
       let frame2 = this.frames[1]
       let diff = frame2[0] - frame1[0]
 
-      const d1 = (frame2[0] - time) / diff
-      const d2 = (time - frame1[0]) / diff
+      const d2 = diff > 0 ? Math.max(0, Math.min(1, (time - frame1[0]) / diff)) : (time >= frame2[0] ? 1 : 0)
+      const d1 = 1 - d2
 
       // npcs
       if (frame1.length == 3 || frame2.length == 3) {
@@ -188,21 +189,9 @@ class Interpolator {
         }
       }
 
-      if (frame1[1] != frame2[1]) {
-        this.object.x = d1 * frame1[1] + d2 * frame2[1]
-      }
-      if (frame1[2] != frame2[2]) {
-        this.object.y = d1 * frame1[2] + d2 * frame2[2]
-      }
-      if (frame1[3] != frame2[3]) {
-        if (frame1[3] - frame2[3] > 180) {
-          this.object.angle = d1 * frame1[3] + d2 * (frame2[3] + 360)
-        } else if (frame2[3] - frame1[3] > 180) {
-          this.object.angle = d1 * (frame1[3] + 360) + d2 * frame2[3]
-        } else {
-          this.object.angle = d1 * (frame1[3] + 360) + d2 * (frame2[3] + 360)
-        }
-      }
+      this.object.x = d1 * frame1[1] + d2 * frame2[1]
+      this.object.y = d1 * frame1[2] + d2 * frame2[2]
+      this.object.angle = this.lerp_angle_degrees(frame1[3], frame2[3], d2)
     }
   }
 
@@ -215,18 +204,18 @@ class Interpolator {
 
   add_char_frame(x, y, angle) {
     this.last_frame = Date.now()
-    this.frames.push([this.last_frame + 200, x, y, angle % 360])
+    this.frames.push([this.last_frame + interpolation_delay, x, y, angle % 360])
   }
   add_npc_frame(x, y) {
     this.last_frame = Date.now()
     if (!this.target) {
-      this.frames.push([this.last_frame + 200, x, y])
+      this.frames.push([this.last_frame + interpolation_delay, x, y])
     } else {
       const dx = this.target.object.x - this.object.x
       const dy = this.target.object.y - this.object.y
       const angle = Math.atan2(dy, dx) * (180 / Math.PI) + 90
 
-      this.frames.push([this.last_frame + 200, x, y, angle])
+      this.frames.push([this.last_frame + interpolation_delay, x, y, angle])
     }
   }
 }

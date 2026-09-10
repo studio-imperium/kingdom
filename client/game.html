@@ -148,25 +148,28 @@
             }
         </style>
         <link rel="stylesheet" href="styles/inventory.css">
+        <link rel="stylesheet" href="styles/lobby.css">
         <link rel="stylesheet" href="styles/joystick/joystick.css">
     </head>
     <body style="margin: 0">
         <div id="connecting_screen" role="status"><span id="connecting_status">Connecting...</span></div>
         <script src="/scripts/loading/water.js"></script>
-        <div class="bottom_container">
-            <div id="healthbar" class="progressbar">
-                <div id="health" style="background-color: #e14b4b;" class="progress" style="width: 90%">
-
+        <div class="bottom_container row">
+            <div class="column">
+                <div id="healthbar" class="progressbar">
+                    <div id="health" style="background-color: #e14b4b;" class="progress" style="width: 90%"></div>
+                    <p id="health_label" class="progress_label">25</p>
                 </div>
-                <p id="health_label" class="progress_label">25</p>
+                <div id="hotbar" class="slots"></div>
             </div>
-
-            <div id="hotbar" class="slots"></div>
+            <button onclick="toggle_inventory()" class="blank_button">
+                <span class="sprite" style="background-position: -10px -90px;"></span>
+            </button>
         </div>
         <form onsubmit="submit_message(event)" class="message_container">
             <div class="messages" id="messages">
             </div>
-            <input id="message_box" class="message_box outlined_text" placeholder="Ener to type a message..."></input>
+            <input id="message_box" class="message_box outlined_text" placeholder="Enter to type a message..."></input>
         </form>
 
         <div id="inventory" class="inventory_container hidden">
@@ -174,6 +177,9 @@
                 <div class="inventory_top">
                     <canvas id="inventory_preview" class="inventory_preview" width="112" height="112"></canvas>
                     <div id="equipment_slots" class="equipment_slots"></div>
+                    <button class="close_inventory blank_button" onclick="toggle_inventory()">
+                        <span class="sprite" style="background-position: -10px -90px;"></span>
+                    </button>
                 </div>
                 <div id="inventory_storage" class="inventory_storage"></div>
                 <div class="seperator"></div>

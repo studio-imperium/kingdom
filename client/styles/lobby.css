@@ -5,6 +5,10 @@ html {
     image-rendering: pixelated;
 }
 
+.row {
+    display: flex;
+    flex-direction: row;
+}
 .column {
     display: flex;
     flex-direction: column;
@@ -119,6 +123,16 @@ html {
 
     border: none;
     outline: none;
+}
+
+.blank_button {
+    background-color: transparent;
+    border: none;
+    width: 4rem;
+    min-height: 4rem;
+}
+.blank_button span {
+    display: inline-block;
 }
 
 .button, .img_button {

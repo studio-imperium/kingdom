@@ -2,6 +2,17 @@ let current_tab = null
 
 const inventoryNode = document.getElementById("inventory")
 
+function toggle_inventory() {
+  if (current_tab == null) {
+    open_tab(inventoryNode)
+    const rect = preview_canvas.getBoundingClientRect()
+    preview.renderer.resize(rect.width, rect.height)
+    update_preview()
+  } else {
+    close_tab()
+  }
+}
+
 function close_tab() {
   if (current_tab != null) {
     current_tab.classList.add("hidden")
@@ -21,13 +32,6 @@ document.addEventListener("keydown", (e) => {
     close_tab()
   }
   if (e.key == "e") {
-    if (current_tab == null) {
-      open_tab(inventoryNode)
-      const rect = preview_canvas.getBoundingClientRect()
-      preview.renderer.resize(rect.width, rect.height)
-      update_preview()
-    } else {
-      close_tab()
-    }
+    toggle_inventory()
   }
 })

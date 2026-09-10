@@ -52,6 +52,11 @@
     top: 0;
     right: 0;
 }
+.close_inventory {
+    position: absolute;
+    top: 0;
+    left: 0;
+}
 
 .placeholder_sprite {
     position: absolute;

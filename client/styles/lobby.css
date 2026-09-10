@@ -18,7 +18,7 @@ html {
     display: flex;
     flex-direction: column;
     overflow: scroll;
-    max-height: 50vh;
+    max-height: 80vh;
 }
 .playerlist div:not(.slot) {
     display: flex;

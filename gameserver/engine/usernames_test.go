@@ -6,7 +6,7 @@ import (
 )
 
 func TestWorldUsernames(t *testing.T) {
-	if err := InitAssets(); err != nil {
+	if err := InitAssets(testAssets.URL + "/"); err != nil {
 		t.Fatal(err)
 	}
 	world := CreateEngine()

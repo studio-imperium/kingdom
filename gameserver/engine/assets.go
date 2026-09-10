@@ -1,10 +1,10 @@
 package engine
 
 import (
-	"embed"
 	"encoding/json"
 	"fmt"
-	"io/fs"
+	"net/http"
+	"time"
 )
 
 type ProjectileSpawnData struct {
@@ -111,30 +111,6 @@ type BombData struct {
 	Radius  uint8   `json:"radius"`
 }
 
-//go:embed assets/items.json
-var itemsJSON []byte
-
-//go:embed assets/npcs.json
-var npcsJSON []byte
-
-//go:embed assets/spawns.json
-var spawnsJSON []byte
-
-//go:embed assets/loot.json
-var lootJSON []byte
-
-//go:embed assets/projectiles.json
-var projectilesJSON []byte
-
-//go:embed assets/bombs.json
-var bombsJSON []byte
-
-//go:embed assets/tiles.json
-var tilesJSON []byte
-
-//go:embed assets/*.json
-var jsonAssets embed.FS
-
 var npcData []NpcData
 var spawnsData []SpawnCollection
 var lootData []LootTable
@@ -143,14 +119,6 @@ var projectileData []ProjectileData
 var bombData []BombData
 
 var biomeSpawns map[uint8][]SpawnData = map[uint8][]SpawnData{}
-
-func JSONAssets() fs.FS {
-	assets, err := fs.Sub(jsonAssets, "assets")
-	if err != nil {
-		panic(err)
-	}
-	return assets
-}
 
 func GetNpcData(id uint8) NpcData {
 	return npcData[id]
@@ -174,24 +142,28 @@ func GetBombData(id uint8) BombData {
 	return bombData[id]
 }
 
-func InitAssets() error {
-	if err := json.Unmarshal(npcsJSON, &npcData); err != nil {
-		return fmt.Errorf("load game assets: %w", err)
-	}
-	if err := json.Unmarshal(spawnsJSON, &spawnsData); err != nil {
-		return fmt.Errorf("load game assets: %w", err)
-	}
-	if err := json.Unmarshal(lootJSON, &lootData); err != nil {
-		return fmt.Errorf("load game assets: %w", err)
-	}
-	if err := json.Unmarshal(itemsJSON, &itemData); err != nil {
-		return fmt.Errorf("load game assets: %w", err)
-	}
-	if err := json.Unmarshal(projectilesJSON, &projectileData); err != nil {
-		return fmt.Errorf("load game assets: %w", err)
-	}
-	if err := json.Unmarshal(bombsJSON, &bombData); err != nil {
-		return fmt.Errorf("load game assets: %w", err)
+func InitAssets(baseURL string) error {
+	client := &http.Client{Timeout: 5 * time.Second}
+	for _, asset := range []struct {
+		name string
+		data any
+	}{
+		{"npcs", &npcData}, {"spawns", &spawnsData}, {"loot", &lootData},
+		{"items", &itemData}, {"projectiles", &projectileData}, {"bombs", &bombData},
+	} {
+		response, err := client.Get(baseURL + asset.name + ".json")
+		if err != nil {
+			return fmt.Errorf("load %s: %w", asset.name, err)
+		}
+		if response.StatusCode != http.StatusOK {
+			response.Body.Close()
+			return fmt.Errorf("load %s: HTTP %d", asset.name, response.StatusCode)
+		}
+		err = json.NewDecoder(response.Body).Decode(asset.data)
+		response.Body.Close()
+		if err != nil {
+			return fmt.Errorf("load %s: %w", asset.name, err)
+		}
 	}
 
 	// desert

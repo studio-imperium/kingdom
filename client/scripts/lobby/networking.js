@@ -6,12 +6,13 @@ async function ping_servers(servers) {
     let start = performance.now()
 
     try {
-      await fetch("https://" + server.address + "/assets/tiles.json", {
+      const response = await fetch("https://" + server.address + "/ping", {
         method: "HEAD",
         cache: "no-store",
         redirect: "error",
         signal: AbortSignal.timeout(3000)
       })
+      if (!response.ok) throw new Error(response.status)
       ping[server.address] = Math.round(performance.now() - start)
     } catch {
       ping[server.address] = 999

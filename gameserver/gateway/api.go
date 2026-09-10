@@ -16,6 +16,8 @@ var player_activity string = "/players/active"
 var player_verify string = "/players/verify"
 var server_address string = "server.kingdomcrushers.io"
 
+func AssetsURL() string { return gateway_address + "/assets/" }
+
 type Session struct {
 	Valid bool `json:"valid"`
 	Guest bool `json:"guest"`

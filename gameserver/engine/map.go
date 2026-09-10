@@ -6,12 +6,12 @@ import (
 	"math/rand/v2"
 )
 
-//go:embed assets/maps/*.map
+//go:embed maps/*.map
 var mapFiles embed.FS
 
 func CreateIsland() (*Engine, error) {
 	engine := CreateEngine()
-	f, err := mapFiles.Open("assets/maps/desertonly.map")
+	f, err := mapFiles.Open("maps/desertonly.map")
 	if err != nil {
 		return nil, err
 	}

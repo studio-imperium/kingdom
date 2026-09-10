@@ -1,6 +1,7 @@
 package main
 
 import (
+	"gateway/assets"
 	"gateway/data"
 	"log"
 	"net/http"
@@ -16,6 +17,7 @@ func createApiSurface() http.Handler {
 
 	mux.HandleFunc("GET /gameservers", get_gameservers)
 	mux.HandleFunc("GET /leaderboard", get_leaderboard)
+	mux.Handle("GET /assets/", http.StripPrefix("/assets/", http.FileServer(http.FS(assets.Files))))
 	mux.HandleFunc("POST /players/update", update_player)
 	mux.HandleFunc("POST /players/verify", verify_token)
 	mux.HandleFunc("POST /players/session", get_session)

@@ -78,7 +78,7 @@ func PlayersOnline() int {
 }
 
 func Start() error {
-	if err := engine.InitAssets(); err != nil {
+	if err := engine.InitAssets(gateway.AssetsURL()); err != nil {
 		return err
 	}
 	var err error
@@ -91,10 +91,13 @@ func Start() error {
 	go world.Run(ctx)
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /connect", ProcessConnection)
-	assets := http.StripPrefix("/assets/", http.FileServer(http.FS(engine.JSONAssets())))
 	mux.HandleFunc("GET /assets/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		assets.ServeHTTP(w, r)
+		http.Redirect(w, r, "https://gateway.kingdomcrushers.io"+r.URL.Path, http.StatusTemporaryRedirect)
+	})
+	mux.HandleFunc("GET /ping", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.WriteHeader(http.StatusNoContent)
 	})
 	return http.ListenAndServe(":"+strconv.Itoa(port), mux)
 }

@@ -1,5 +1,5 @@
 let textures
-const DATA_ASSET_BASE = prefixs[1] + "://" + addr + "/assets"
+const DATA_ASSET_BASE = "https://gateway.kingdomcrushers.io/assets"
 const spritesheet_data = {
   frames: {},
   meta: {

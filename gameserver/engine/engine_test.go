@@ -13,7 +13,7 @@ func joinPlayer(world *Engine, id uint32) chan []byte {
 }
 
 func TestJoinNameInChat(t *testing.T) {
-	if err := InitAssets(); err != nil {
+	if err := InitAssets(testAssets.URL + "/"); err != nil {
 		t.Fatal(err)
 	}
 	world := CreateEngine()
@@ -28,7 +28,7 @@ func TestJoinNameInChat(t *testing.T) {
 }
 
 func TestFinalCharacterState(t *testing.T) {
-	if err := InitAssets(); err != nil {
+	if err := InitAssets(testAssets.URL + "/"); err != nil {
 		t.Fatal(err)
 	}
 	for _, dead := range []bool{false, true} {
@@ -63,7 +63,7 @@ func TestFinalCharacterState(t *testing.T) {
 }
 
 func TestVisibilityDoesNotChangeWorld(t *testing.T) {
-	if err := InitAssets(); err != nil {
+	if err := InitAssets(testAssets.URL + "/"); err != nil {
 		t.Fatal(err)
 	}
 	world := CreateEngine()
@@ -93,7 +93,7 @@ func TestVisibilityDoesNotChangeWorld(t *testing.T) {
 }
 
 func TestWorldCombat(t *testing.T) {
-	if err := InitAssets(); err != nil {
+	if err := InitAssets(testAssets.URL + "/"); err != nil {
 		t.Fatal(err)
 	}
 	world := CreateEngine()
@@ -151,7 +151,7 @@ func TestWorldCombat(t *testing.T) {
 }
 
 func TestLootEligibilityPickupAndExpiry(t *testing.T) {
-	if err := InitAssets(); err != nil {
+	if err := InitAssets(testAssets.URL + "/"); err != nil {
 		t.Fatal(err)
 	}
 	world := CreateEngine()
@@ -191,7 +191,7 @@ func TestLootEligibilityPickupAndExpiry(t *testing.T) {
 }
 
 func TestDeathAndSlowConnection(t *testing.T) {
-	if err := InitAssets(); err != nil {
+	if err := InitAssets(testAssets.URL + "/"); err != nil {
 		t.Fatal(err)
 	}
 	world := CreateEngine()
@@ -220,7 +220,7 @@ func TestDeathAndSlowConnection(t *testing.T) {
 }
 
 func TestIslandLoadsAndTicks(t *testing.T) {
-	if err := InitAssets(); err != nil {
+	if err := InitAssets(testAssets.URL + "/"); err != nil {
 		t.Fatal(err)
 	}
 	world, err := CreateIsland()

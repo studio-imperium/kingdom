@@ -1,1 +1,8 @@
 .DS_Store
+node_modules/
+*.jks
+*.keystore
+/android/
+/capacitor.config.*
+/package.json
+/package-lock.json

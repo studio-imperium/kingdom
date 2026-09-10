@@ -14,6 +14,7 @@ function toggle_inventory() {
 }
 
 function close_tab() {
+  cancel_inventory_drag()
   if (current_tab != null) {
     current_tab.classList.add("hidden")
     current_tab = null

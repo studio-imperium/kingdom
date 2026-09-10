@@ -37,55 +37,14 @@ function create_slot(idx) {
 
   slot_container.slot = idx
   slot.slot = idx
-  slot.draggable = true
-
-  slot.addEventListener("dragstart", (event) => {
-    const sprite = slot.querySelector(".slot_sprite")
-    const drag = sprite.cloneNode()
+  slot.addEventListener("pointerdown", (event) => {
+    if (dragged || event.button !== 0) return
     const item_id =
       idx == 24 ? character.head : idx == 25 ? character.body : inventory[idx]
-    const data = item_data[item_id]
-
-    if (!data || item_id < 2) {
-      event.preventDefault()
-      return
-    }
-
-    dragged = idx
-    event.target.classList.add("dragging")
-
-    drag.style.width = "40px"
-    drag.style.height = "40px"
-    drag.style.backgroundSize = "2048px 2048px"
-    drag.style.backgroundPosition = `${0}px ${-90 * 4}px`
-
-    document.body.appendChild(drag)
-
-    event.dataTransfer.setDragImage(drag, 20, 20)
-
-    requestAnimationFrame(() => {
-      drag.remove()
-    })
-  })
-  slot.addEventListener("dragend", (event) => {
-    event.target.classList.remove("dragging")
-  })
-  slot.addEventListener("dragover", (event) => {
+    if (!item_data[item_id] || item_id < 2) return
     event.preventDefault()
-  })
-  slot.addEventListener("dragenter", (event) => {
-    event.target.classList.add("hovered")
-  })
-  slot.addEventListener("dragleave", (event) => {
-    event.target.classList.remove("hovered")
-  })
-  slot.addEventListener("drop", (event) => {
-    event.preventDefault()
-    event.stopPropagation()
-
-    event.target.classList.remove("hovered")
-    change_inventory(idx, dragged)
-    dragged = null
+    dragged = { slot, idx, pointer_id: event.pointerId, x: event.clientX, y: event.clientY }
+    slot.setPointerCapture(event.pointerId)
   })
 
   slot.appendChild(sprite)
@@ -211,12 +170,51 @@ function refresh_inventory(_inventory, hand, head, body) {
 populate_hotbar()
 populate_inventory()
 
-document.body.addEventListener("dragover", (event) => {
-  if (dragged != null) event.preventDefault()
-})
-document.body.addEventListener("drop", (event) => {
-  if (dragged == null) return
-  event.preventDefault()
-  drop_item(dragged)
+function cancel_inventory_drag() {
+  if (!dragged) return
+  const drag = dragged
   dragged = null
+  drag.sprite?.remove()
+  drag.slot.classList.remove("dragging")
+  drag.target?.classList.remove("hovered")
+  if (drag.slot.hasPointerCapture(drag.pointer_id)) drag.slot.releasePointerCapture(drag.pointer_id)
+}
+
+document.addEventListener("pointermove", (event) => {
+  if (!dragged || event.pointerId !== dragged.pointer_id) return
+  if (!dragged.sprite) {
+    // Small finger movements while tapping should not move or drop an item.
+    if (Math.hypot(event.clientX - dragged.x, event.clientY - dragged.y) < 6) return
+    dragged.sprite = dragged.slot.querySelector(".slot_sprite").cloneNode()
+    dragged.sprite.classList.add("inventory_drag")
+    document.body.appendChild(dragged.sprite)
+    dragged.slot.classList.add("dragging")
+  }
+  dragged.sprite.style.left = `${event.clientX}px`
+  dragged.sprite.style.top = `${event.clientY}px`
+  dragged.target?.classList.remove("hovered")
+  dragged.target = document.elementFromPoint(event.clientX, event.clientY)?.closest(".inventory_slot")
+  if (dragged.target !== dragged.slot) dragged.target?.classList.add("hovered")
+})
+
+document.addEventListener("pointerup", (event) => {
+  if (!dragged || event.pointerId !== dragged.pointer_id) return
+  const drag = dragged
+  const element = document.elementFromPoint(event.clientX, event.clientY)
+  const target = element?.closest(".inventory_slot")
+  cancel_inventory_drag()
+  if (!drag.sprite || !element || drag.slot.closest(".hidden")) return
+  if (target && target !== drag.slot) change_inventory(Number(target.slot), drag.idx)
+  else if (!target) drop_item(drag.idx)
+})
+
+for (const type of ["pointercancel", "lostpointercapture"]) {
+  document.addEventListener(type, (event) => {
+    if (event.pointerId === dragged?.pointer_id) cancel_inventory_drag()
+  })
+}
+window.addEventListener("blur", cancel_inventory_drag)
+window.addEventListener("resize", cancel_inventory_drag)
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) cancel_inventory_drag()
 })

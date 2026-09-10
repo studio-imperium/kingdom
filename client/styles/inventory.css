@@ -104,6 +104,8 @@
     max-height: 50px;
 }
 .inventory_slot {
+    touch-action: none;
+    user-select: none;
     pointer-events: all !important;
     padding: 20px;
     width: 10px;
@@ -128,6 +130,12 @@
 
 .dragging {
     filter: opacity(0) !important;
+}
+.inventory_drag {
+    position: fixed;
+    z-index: 10000;
+    margin: 0;
+    transform: translate(-50%, -50%);
 }
 .hovered {
     filter: opacity(0.5);

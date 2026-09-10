@@ -2,12 +2,12 @@ const preview_canvas = document.getElementById("character_preview")
 const preview = new PIXI.Application()
 let preview_character = null
 const preview_texture_cache = {}
+let mouse_x = 0, mouse_y = 0
 
 function angle_preview(x, y) {
-  center_x =
-    preview_canvas.getBoundingClientRect().left + preview_canvas.width / 2
-  center_y =
-    preview_canvas.getBoundingClientRect().top + preview_canvas.height / 2
+  if (!preview_character) return
+  const { left, top, width, height } = preview_canvas.getBoundingClientRect()
+  const center_x = left + width / 2, center_y = top + height / 2
 
   const dx = x - center_x
   const dy = y - center_y
@@ -23,7 +23,6 @@ document.addEventListener("mousemove", (e) => {
 async function init_preview() {
   await preview.init({
     canvas: preview_canvas,
-    resizeTo: document.querySelector(".inventory_top"),
     width: 256,
     height: 256,
     useContextAlpha: false,
@@ -90,7 +89,8 @@ function render_character(canvas, size, hand, head, body) {
   return canvas
 }
 
-async function update_preview(custom_hand, custom_head, custom_body) {
+function update_preview(custom_hand, custom_head, custom_body) {
+  if (!preview.renderer || !account?.data) return
   const character = account.data.characters[0]
 
   if (preview_character) {
@@ -98,9 +98,9 @@ async function update_preview(custom_hand, custom_head, custom_body) {
   }
 
   preview_character = build_preview_character(
-    custom_hand ? custom_hand : character.hand ? character.hand : character.inventory[0],
-    custom_head ? custom_head : character.head,
-    custom_body ? custom_body : character.body,
+    custom_hand ?? character.inventory[character.hand],
+    custom_head ?? character.head,
+    custom_body ?? character.body,
   )
   preview_character.x = preview.canvas.width / 2
   preview_character.y = preview.canvas.height / 2

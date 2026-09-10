@@ -39,8 +39,8 @@ function handshake() {
   const data = new DataView(buffer)
 
   data.setUint8(0, HANDSHAKE)
-  new Uint8Array(buffer, 1, 32).set(account_session.token.match(/../g).map(byte => parseInt(byte, 16)))
-  data.setBigInt64(33, BigInt(account_session.guest ? 0 : sessionStorage.getItem("kingdom.character_id") || 0), true)
+  new Uint8Array(buffer, 1, 32).set(account.token.match(/../g).map(byte => parseInt(byte, 16)))
+  data.setBigInt64(33, BigInt(account.guest ? 0 : account.data.characters[0].id), true)
   new Uint8Array(buffer, 41).set(name)
 
   socket.send(data)
@@ -389,9 +389,17 @@ async function connect() {
     socket?.close(1000, "Leaving game")
   })
   window.addEventListener("pageshow", event => { if (event.persisted) location.reload() })
-  await account_ready
+  try {
+    await restore_session()
+  } catch (error) {
+    closed(error); return
+  }
+
   if (leaving) return
-  if (!account_session) { closed(); return }
+  if (!account?.valid) {
+    closed()
+    return
+  }
   socket = new WebSocket(prefixs[0] + "://" + addr + "/connect")
   socket.binaryType = "arraybuffer"
 

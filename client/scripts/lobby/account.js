@@ -10,47 +10,54 @@ function authorized_body(body, token=localStorage.getItem("kingdom.token")) {
   }
 }
 
-async function account_request(path, body) {
+async function account_request(path, body, token) {
   const response = await fetch(
     `https://gateway.kingdomcrushers.io${path}`,
-    authorized_body(body)
+    authorized_body(body, token)
   )
-  return await response.json()
+  if (response.status === 204) return null
+  const data = await response.json().catch(() => null)
+  if (!response.ok) throw Object.assign(new Error(data?.error || `Gateway request failed (${response.status})`), { status: response.status })
+  if (!data) throw new Error("Invalid gateway response.")
+  return data
+}
+
+function save_token(token) {
+  if (!/^[a-f0-9]{64}$/i.test(token || "")) throw new Error("Invalid session token.")
+  localStorage.setItem("kingdom.token", token)
 }
 
 async function guest_session() {
   const session = await account_request("/player/guest")
   const token = session.token
 
-  localStorage.setItem("kingdom.token", token)
-  account = session
-
-  document.getElementById("login_button").classList.remove("hidden")
-  document.getElementById("logout_button").classList.add("hidden")
-
-  return account
+  save_token(token)
+  return account = { ...await account_request("/players/session", undefined, token), token }
 }
 
 async function restore_session() {
-  let session = await account_request("/players/session")
-
-  if (!session.valid) {
+  const token = localStorage.getItem("kingdom.token")
+  if (!token) return guest_session()
+  let session
+  try {
+    session = await account_request("/players/session", undefined, token)
+  } catch (error) {
+    if (error.status !== 401) throw error
+    account = null
     localStorage.removeItem("kingdom.token")
     return guest_session()
   }
+  if (!session.valid) throw new Error("Invalid session response.")
   if (!session.guest && !session.data.characters.length) {
-    await account_request("/character/new")
-    session = await account_request("/players/session")
+    await account_request("/character/new", undefined, token).catch(error => { if (error.status !== 409) throw error })
+    session = await account_request("/players/session", undefined, token)
   }
-  account = session
-  document.getElementById("login_button").classList.add("hidden")
-  document.getElementById("logout_button").classList.remove("hidden")
-  await populate_graveyard()
+  return account = { ...session, token }
 }
 
 async function authenticate(email, password, endpoint) {
   const session = await account_request(endpoint, { email, password })
-  localStorage.setItem("kingdom.token", session.token)
+  save_token(session.token)
   return restore_session()
 }
 
@@ -62,15 +69,18 @@ function register(email, password) {
 }
 
 async function logout() {
-  let token
-  if (token = localStorage.getItem("kingdom.token")) {
+  const token = localStorage.getItem("kingdom.token")
+  if (token) {
     try {
       await account_request("/logout", undefined, token)
-    } catch (error) {}
+    } catch (error) { if (error.status !== 401) throw error }
   }
 
   localStorage.removeItem("kingdom.token")
   sessionStorage.removeItem("kingdom.token")
+  localStorage.removeItem("kingdom.player_name")
+  sessionStorage.removeItem("kingdom.player_name")
+  sessionStorage.removeItem("kingdom.character_id")
   account = null
 
   return guest_session()
@@ -82,6 +92,8 @@ async function submit_account(event, action) {
   const form = event.currentTarget
   const error = form.querySelector('[role="alert"]')
   const confirm = form.elements.password_confirmation
+  const button = form.querySelector('[type="submit"]')
+  error.classList.add("hidden")
 
   if (confirm && confirm.value != form.elements.password.value) {
     confirm.setCustomValidity("Passwords do not match.")
@@ -89,9 +101,13 @@ async function submit_account(event, action) {
     return
   }
 
+  button.disabled = true
   try {
+    await account_ready.catch(() => {})
+    await lobby_ready
     if (action == "logout") {
       await logout()
+      document.querySelector('#home [name="username"]').value = ""
     }
     else {
       let session
@@ -108,9 +124,13 @@ async function submit_account(event, action) {
       }
     }
     form.reset()
+    update_account_buttons()
+    populate_graveyard()
     switch_screen("home")
   } catch (failure) {
     error.textContent = failure.message
     error.classList.remove("hidden")
+  } finally {
+    button.disabled = false
   }
 }

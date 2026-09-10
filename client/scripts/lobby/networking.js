@@ -2,7 +2,7 @@ let leaderboard = []
 let ping = {}
 
 async function ping_servers(servers) {
-  for (server of servers) {
+  for (const server of servers) {
     let start = performance.now()
 
     try {
@@ -25,6 +25,7 @@ let server;
 
 async function init_servers() {
   const response = await fetch(server_api)
+  if (!response.ok) throw new Error("Unable to load servers.")
   const servers = await response.json()
   await ping_servers(servers)
 
@@ -41,9 +42,11 @@ async function init_servers() {
   select.addEventListener("change", on_change)
 
   select.innerHTML = ""
-  for (server of servers) {
+  for (const server of servers) {
     select.add(new Option(server.name + " " + server.players_online + "/" + server.max_players, server.address))
   }
+  select.disabled = !servers.length
+  if (!servers.length) select.add(new Option("No servers available", ""))
   on_change()
 }
 
@@ -52,6 +55,7 @@ async function init_servers() {
 async function fetch_leaderboards() {
   leaderboard = await (await fetch("https://gateway.kingdomcrushers.io/leaderboard")).json()
   const leaderboard_list = document.getElementById("leaderboard_list")
+  leaderboard_list.replaceChildren()
 
   let i = 1;
 
@@ -68,7 +72,7 @@ async function fetch_leaderboards() {
     }
 
     rank.innerHTML = i + "."
-    name.innerHTML = character.username + ", level " + character.level
+    name.textContent = character.username + ", level " + character.level
     render_character(preview, 135, character.weapon, character.head, character.body)
 
     container.appendChild(rank)
@@ -95,7 +99,7 @@ async function fetch_leaderboards() {
     return container;
   }
 
-  for (character of leaderboard) {
+  for (const character of leaderboard) {
     leaderboard_list.appendChild(make_entry(character))
     i++
   }
@@ -103,13 +107,15 @@ async function fetch_leaderboards() {
 
 
 
-async function populate_graveyard() {
+function populate_graveyard() {
   const graveyard = account.data.graveyard
   const graveyard_list = document.getElementById("graveyard_list")
+  graveyard_list.replaceChildren()
 
   let i = 1;
 
   const make_entry = (character) => {
+    const weapon = character.inventory[character.hand] || 0
     const container = document.createElement("div")
     const rank = document.createElement("p")
     const name = document.createElement("label")
@@ -122,11 +128,11 @@ async function populate_graveyard() {
     }
 
     rank.innerHTML = i + "."
-    name.innerHTML = character.username + ", level " + character.level
-    render_character(preview, 135, character.weapon, character.head, character.body)
+    name.textContent = character.username + ", level " + character.level
+    render_character(preview, 135, weapon, character.head, character.body)
 
     container.appendChild(rank)
-    for (var item_id of [character.weapon, character.head, character.body]) {
+    for (var item_id of [weapon, character.head, character.body]) {
       let data = item_data[item_id]
 
       const slot = document.createElement("div")
@@ -149,7 +155,7 @@ async function populate_graveyard() {
     return container;
   }
 
-  for (character of graveyard) {
+  for (const character of graveyard) {
     graveyard_list.appendChild(make_entry(character))
     i++
   }

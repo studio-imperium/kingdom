@@ -1,5 +1,11 @@
 const screens = document.querySelectorAll(".screen")
 
+function update_account_buttons() {
+  const logged_in = account?.valid && !account.guest
+  document.getElementById("login_button").classList.toggle("hidden", !!logged_in)
+  document.getElementById("logout_button").classList.toggle("hidden", !logged_in)
+}
+
 function switch_screen(screen_name = "home") {
   const new_screen = document.getElementById(screen_name)
   const slot = new_screen.querySelector(".preview_slot")

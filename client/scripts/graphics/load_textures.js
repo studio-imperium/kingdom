@@ -24,7 +24,7 @@ async function load_textures() {
 
   const assets_texture = await PIXI.Assets.load("assets/assets.png")
   const sheet = new PIXI.Spritesheet(assets_texture, spritesheet_data)
-  sheet.parse()
+  await sheet.parse()
   sheet.textureSource.source.scaleMode = "nearest"
   textures = sheet.textures
 

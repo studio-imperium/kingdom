@@ -33,11 +33,12 @@
                 <form class="panel" autocomplete="off" onsubmit="play(event)">
                     <input class="strong_input" name="username" placeholder="username" autocomplete="off" required>
                     <div class="group">
-                        <select id="servers">
+                        <select id="servers" name="servers" disabled>
                           <option value="">Loading...</option>
                         </select>
                         <button type="submit">Play</button>
                     </div>
+                    <p class="hidden error" role="alert"></p>
                 </form>
                 <button style="margin-bottom: 6px" class="button" onclick="switch_screen('leaderboard')">Leaderboard</button>
                 <button class="button" onclick="switch_screen('graveyard')">Graveyard</button>
@@ -48,6 +49,7 @@
             <div class="center">
                 <form class="panel" onsubmit="submit_account(event, 'logout')">
                     <h3>Logout</h3>
+                    <p class="hidden error" role="alert"></p>
                     Are you sure you want to logout?
                     <div class="group">
                         <button type="button" onclick="switch_screen('home')">Cancel</button>
@@ -64,7 +66,7 @@
                 <form class="panel" autocomplete="off" onsubmit="submit_account(event, 'login')">
                     <h3>Login</h3>
 
-                    <p class="hidden error">ERROR</p>
+                    <p class="hidden error" role="alert"></p>
                     <input name="email" type="email" placeholder="email" required>
                     <input name="password" type="password" placeholder="password" required>
 
@@ -81,13 +83,13 @@
             <div class="center">
                 <div class="preview_slot">
                 </div>
-                <form class="panel" autocomplete="off" onsubmit="submit_account(event, 'register')">
+                <form class="panel" autocomplete="off" onsubmit="submit_account(event, 'register')" oninput="this.elements.password_confirmation.setCustomValidity('')">
                     <h3>Register</h3>
 
-                    <p class="hidden error">ERROR</p>
-                    <input type="email" placeholder="email" required>
-                    <input type="password" placeholder="password" required>
-                    <input type="password" placeholder="confirm password" required>
+                    <p class="hidden error" role="alert"></p>
+                    <input name="email" type="email" placeholder="email" required>
+                    <input name="password" type="password" placeholder="password" required>
+                    <input name="password_confirmation" type="password" placeholder="confirm password" required>
 
                     <div class="group">
                         <button type="button" onclick="switch_screen('home')">Cancel</button>
@@ -141,16 +143,32 @@
         <script src="/scripts/lobby/previews.js"></script>
         <script src="/scripts/lobby/networking.js"></script>
         <script src="/scripts/lobby/screens.js"></script>
+        <script src="/scripts/lobby/play.js"></script>
 
         <script>
-            (async () => {
-              await restore_session()
-              await init_lobby()
-              await init_servers()
-              await fetch_leaderboards()
-              await populate_graveyard()
-              update_preview()
-            })()
+            const lobby_ready = init_lobby()
+            const account_ready = restore_session()
+            const name_input = document.querySelector('#home [name="username"]')
+            name_input.value = localStorage.getItem("kingdom.player_name") || sessionStorage.getItem("kingdom.player_name") || ""
+            name_input.addEventListener("input", () => {
+              name_input.setCustomValidity("")
+              localStorage.setItem("kingdom.player_name", name_input.value)
+            })
+
+            Promise.all([account_ready, lobby_ready]).then(() => {
+              update_account_buttons()
+              populate_graveyard()
+              switch_screen(document.querySelector(".screen:not(.hidden)").id)
+            }).catch(failure => {
+              const error = document.querySelector('#home [role="alert"]')
+              error.textContent = failure.message
+              error.classList.remove("hidden")
+            })
+            init_servers().catch(error => {
+              select.replaceChildren(new Option("Servers unavailable", ""))
+              console.error(error)
+            })
+            lobby_ready.then(fetch_leaderboards).catch(console.error)
         </script>
     </body>
 </html>

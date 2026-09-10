@@ -1,0 +1,182 @@
+.inventory_container {
+    position: absolute;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: all;
+}
+
+.seperator {
+    background-image: url(./assets/ui/seperator.png);
+    background-size: 120px;
+    width: calc(100% + 4px);
+    height: 20px;
+}
+
+.inventory_panel {
+    background-color: #636363;
+    border-image: url("/assets/ui/border.png") 9 / 9px / 0 round;
+    padding: 2px;
+    border-width: 12px;
+    border-style: solid;
+    box-sizing: border-box;
+    image-rendering: pixelated;
+}
+
+.inventory_top {
+    display: flex;
+    align-items: stretch;
+    gap: 0.75rem;
+    height: 200px;
+    position: relative;
+}
+
+.inventory_preview {
+    background-color: black;
+    border-bottom: 4px solid #373737;
+    box-sizing: border-box;
+    image-rendering: pixelated;
+
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.equipment_slots {
+    display: grid;
+    align-content: start;
+    position: absolute;
+    top: 0;
+    right: 0;
+}
+
+.placeholder_sprite {
+    position: absolute;
+    left: 2px;
+    bottom: 2px;
+    transform: translate(50%, -50%);
+
+    pointer-events: none;
+    background-color: transparent;
+
+    background-image: url("/assets/assets.png");
+    background-position: 999px -10px;
+    background-repeat: no-repeat;
+    background-size: 512px 512px;
+    padding: 0;
+    width: 10px;
+    height: 10px;
+    scale: 4;
+    image-rendering: pixelated;
+    border: 0;
+}
+
+.inventory_storage,
+.inventory_hotbar {
+    display: grid;
+    grid-template-columns: repeat(6, 3.625rem);
+    gap: 4px;
+    justify-content: center;
+    margin-top: 4px;
+}
+
+.inventory_storage {
+    margin-bottom: 4px;
+}
+
+.inventory_slot_container {
+    pointer-events: none;
+
+    background-color: #525252;
+    border-image: url("/assets/ui/slot_border.png") 4 / 4px / 0 round;
+    border-width: 4px;
+    border-style: solid;
+
+    max-width: 50px;
+    max-height: 50px;
+}
+.inventory_slot {
+    pointer-events: all !important;
+    padding: 20px;
+    width: 10px;
+    height: 10px;
+
+    image-rendering: pixelated;
+    position: relative;
+}
+
+.inventory_slot_container:hover {
+    filter: brightness(1.05);
+}
+
+.inventory_slot:active {
+    cursor: grabbing;
+}
+
+.gear_slot .slot_sprite {
+    filter: drop-shadow(0.5px 0 0 black) drop-shadow(-0.5px 0 0 black)
+        drop-shadow(0 0.5px 0 black) drop-shadow(0 -0.5px 0 black) !important;
+}
+
+.dragging {
+    filter: opacity(0) !important;
+}
+.hovered {
+    filter: opacity(0.5);
+}
+
+.slots {
+    background-color: #636363;
+
+    display: flex;
+    box-sizing: content-box;
+    justify-content: center;
+    border-image: url("/assets/ui/border.png") 9 / 9px / 0 round;
+    border-width: 12px;
+    border-style: solid;
+
+    border-collapse: separate;
+    border-spacing: 4px 0;
+}
+.slot {
+    margin: 2px;
+    padding: 20px;
+    width: 10px;
+    height: 10px;
+
+    background-color: #525252;
+    border-image: url("/assets/ui/slot_border.png") 4 / 4px / 0 round;
+    border-width: 4px;
+    border-style: solid;
+
+    image-rendering: pixelated;
+    position: relative;
+}
+.slot:hover {
+    filter: brightness(1.05);
+}
+.selected {
+    background-color: #848484 !important;
+    border: 4px solid white !important;
+}
+.slot_sprite {
+    pointer-events: none;
+    background-color: transparent;
+
+    background-image: url("/assets/assets.png");
+    background-position: 999px -10px;
+    background-repeat: no-repeat;
+    background-size: 512px 512px;
+    padding: 0;
+    width: 10px;
+    height: 10px;
+    scale: 4;
+    image-rendering: pixelated;
+    border: 0;
+    filter: drop-shadow(0.5px 0 0 #2A2A2A)
+        drop-shadow(-0.5px 0 0 #2A2A2A) drop-shadow(0 0.5px 0 #2A2A2A)
+        drop-shadow(0 -0.5px 0 #2A2A2A);
+}

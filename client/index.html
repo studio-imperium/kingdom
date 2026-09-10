@@ -10,14 +10,18 @@
     </head>
     <body style="margin: 0">
         <div id="home" class="screen">
-            <div class="top_left">
-                <button class="img_button" onclick="location.href='/maps.html'">
+            <div id="utilities" class="top_left">
+                <button id="map_button" class="img_button" onclick="location.href='/maps.html'">
                     Map editor
                     <span style="background-position: -10px -180px;"></span>
                 </button>
                 <button class="img_button" onclick="window.open('https://discord.gg/pufAc8wWzd')">
                     Discord
-                    <span style="background-position: -20px -180px;"></span>
+                    <span style="background-position: -30px -180px;"></span>
+                </button>
+                <button class="img_button" onclick="window.open('https://discord.gg/pufAc8wWzd')">
+                    Play store
+                    <span style="background-position: -40px -180px;"></span>
                 </button>
             </div>
 
@@ -26,7 +30,7 @@
                 <button id="logout_button" class="button hidden" onclick="switch_screen('logout')">Logout</button>
             </div>
 
-            <div class="center">
+            <div id="lobby_main" class="center">
                 <div class="preview_slot">
                     <canvas width="256" height="256" id="character_preview"></canvas>
                 </div>
@@ -40,8 +44,8 @@
                     </div>
                     <p class="hidden error" role="alert"></p>
                 </form>
-                <button style="margin-bottom: 6px" class="button" onclick="switch_screen('leaderboard')">Leaderboard</button>
-                <button class="button" onclick="switch_screen('graveyard')">Graveyard</button>
+                <button id="leaderboard_button" class="button" onclick="switch_screen('leaderboard')">Leaderboard</button>
+                <button id="graveyard_button" class="button" onclick="switch_screen('graveyard')">Graveyard</button>
             </div>
         </div>
 
@@ -61,7 +65,7 @@
 
         <div id="login" class="screen hidden">
             <div class="center">
-                <div class="preview_slot">
+                <div id="login_preview" class="preview_slot">
                 </div>
                 <form class="panel" autocomplete="off" onsubmit="submit_account(event, 'login')">
                     <h3>Login</h3>
@@ -81,7 +85,7 @@
 
         <div id="register" class="screen hidden">
             <div class="center">
-                <div class="preview_slot">
+                <div id="register_preview" class="preview_slot">
                 </div>
                 <form class="panel" autocomplete="off" onsubmit="submit_account(event, 'register')" oninput="this.elements.password_confirmation.setCustomValidity('')">
                     <h3>Register</h3>
@@ -144,8 +148,10 @@
         <script src="/scripts/lobby/networking.js"></script>
         <script src="/scripts/lobby/screens.js"></script>
         <script src="/scripts/lobby/play.js"></script>
+        <script src="/scripts/mobile/mobile.js"></script>
 
         <script>
+            configure_mobile()
             const lobby_ready = init_lobby()
             const account_ready = restore_session()
             const name_input = document.querySelector('#home [name="username"]')

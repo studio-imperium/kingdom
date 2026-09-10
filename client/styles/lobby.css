@@ -5,8 +5,12 @@ html {
     image-rendering: pixelated;
 }
 
+.column {
+    display: flex;
+    flex-direction: column;
+}
 .hidden {
-    display: none;
+    display: none !important;
 }
 
 .error {
@@ -44,10 +48,17 @@ html {
     width: 110px;
     height: 110px;
 }
+@media screen and (max-width: 800px) {
+  body {
+    .playerlist {
+        max-height: 50vh;
+    }
+  }
+}
 
 .preview_slot {
-    width: 250px;
-    height: 250px;
+    width: 200px;
+    height: 200px;
 
     display: flex;
     align-self: center;
@@ -238,7 +249,7 @@ html {
 }
 
 .panel {
-    min-width: 20rem;
+    min-width: 22vw;
     margin: 3px;
 
     display: flex;

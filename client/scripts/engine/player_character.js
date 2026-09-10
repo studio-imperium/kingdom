@@ -26,11 +26,16 @@ function init_character(x, y, angle, health, hand, head, body, _inventory) {
     if (!character) {
       return
     }
-    if (attacking && attack_cooldown <= 0) {
-      const rect = app.canvas.getBoundingClientRect()
-      const x = mouse_x - rect.left + character.object.x * 8
-      const y = mouse_y - rect.top + character.object.y * 8
+    const centerX = app.screen.width / 2
+    const centerY = app.screen.height / 2
+    const mouse = app.renderer.events.pointer.global
+    const aiming = mobile_controls && (mobile_controls.right.x !== 0 || mobile_controls.right.y !== 0)
+    const direction = mobile_controls ? (aiming ? mobile_controls.right : mobile_controls.left) : { x: mouse.x - centerX, y: mouse.y - centerY }
+    if (!mobile_controls || direction.x !== 0 || direction.y !== 0) {
+      character.object.angle = Math.atan2(direction.y, direction.x) * (180 / Math.PI) + 90
+    }
 
+    if ((mobile_controls ? aiming && !chat_focused : attacking) && attack_cooldown <= 0) {
       attack()
     }
 
@@ -39,20 +44,14 @@ function init_character(x, y, angle, health, hand, head, body, _inventory) {
     attack_cooldown -= deltaMS / 1000
 
     if (!chat_focused) {
-      const len = Math.sqrt(velocity.x * velocity.x + velocity.y * velocity.y)
-      const nx = len > 0 ? velocity.x / len : 0
-      const ny = len > 0 ? velocity.y / len : 0
+      const movement = mobile_controls ? mobile_controls.left : velocity
+      const len = Math.hypot(movement.x, movement.y)
+      const nx = len > 0 ? movement.x / len : 0
+      const ny = len > 0 ? movement.y / len : 0
 
       character.object.x += (speed * nx * deltaTime) / 32
       character.object.y += (speed * ny * deltaTime) / 32
     }
-
-    const mouse = app.renderer.events.pointer.global
-    const centerX = app.screen.width / 2
-    const centerY = app.screen.height / 2
-    const dx = mouse.x - centerX
-    const dy = mouse.y - centerY
-    character.object.angle = Math.atan2(dy, dx) * (180 / Math.PI) + 90
 
     app.stage.pivot.set(character.object.x, character.object.y)
     app.stage.position.set(centerX, centerY)
@@ -131,6 +130,7 @@ function attack() {
 }
 
 function init_combat() {
+  if (mobile_controls) return
   app.canvas.addEventListener("pointerdown", (event) => {
     attacking = true
   })
@@ -174,6 +174,10 @@ document.addEventListener("keyup", (e) => {
 })
 
 function get_mouse_target() {
+  if (mobile_controls) {
+    const angle = (character.object.angle - 90) * Math.PI / 180
+    return [character.object.x + Math.cos(angle) * 6, character.object.y + Math.sin(angle) * 6]
+  }
   const mouse = app.renderer.events.pointer.global
   const point = app.stage.toLocal(mouse)
   return [point.x, point.y]

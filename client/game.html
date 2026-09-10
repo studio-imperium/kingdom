@@ -15,6 +15,7 @@
                 position: relative;
                 background-color: #636363;
                 height: 0.25rem;
+                color: white;
 
                 display: flex;
                 box-sizing: content-box;
@@ -155,6 +156,9 @@
         <div id="connecting_screen" role="status"><span id="connecting_status">Connecting...</span></div>
         <script src="/scripts/loading/water.js"></script>
         <div class="bottom_container row">
+            <button onclick="toggle_inventory()" class="blank_button">
+                <span class="sprite" style="background-position: -20px -90px;"></span>
+            </button>
             <div class="column">
                 <div id="healthbar" class="progressbar">
                     <div id="health" style="background-color: #e14b4b;" class="progress" style="width: 90%"></div>

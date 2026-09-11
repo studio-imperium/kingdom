@@ -25,5 +25,6 @@ async function init() {
         document.getElementById("tile_selection").appendChild(button)
     })
     init_draw()
+    document.getElementById("import_button").disabled = false
     app.ticker.add(({ deltaMS }) => { elapsed += deltaMS / 1000; tile_animations() })
 }

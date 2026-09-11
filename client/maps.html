@@ -2,7 +2,7 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>Map editor</title>
+        <title>kingdomcrushers.io</title>
         <link rel="stylesheet" href="https://use.typekit.net/jbe5uxg.css">
         <style>
             html {
@@ -79,6 +79,8 @@
             }
             .tool:hover, .icon:hover { outline: 0.5px solid white; }
             .selected_tool, .selected { outline: 1px solid white !important; }
+            [hidden] { display: none !important; }
+            .tool:disabled { opacity: 0.4; }
         </style>
     </head>
     <body style="margin: 0;">
@@ -106,6 +108,9 @@
         </table>
         <div class="panel selection" id="tile_selection"></div>
         <div class="buttons">
+            <span id="preview_notice" hidden>Large map preview</span>
+            <button id="import_button" class="button" onclick="document.getElementById('import_file').click()" disabled>Import</button>
+            <input id="import_file" type="file" accept=".map" hidden onchange="import_map(this.files[0]); this.value = ''">
             <button class="button" onclick="export_map()">Export</button>
             <button class="button" onclick="reset_map()">
                 Reset
@@ -119,6 +124,7 @@
         <script src="/scripts/graphics/tiles.js"></script>
         <script src="/scripts/maps/draw.js"></script>
         <script src="/scripts/maps/export.js"></script>
+        <script src="/scripts/maps/import.js"></script>
         <script>
             let selected_tool = 'brush_1'
             function select_tool(tool, element) {
@@ -136,6 +142,12 @@
             init()
 
             function reset_map() {
+                map_preview?.destroy({ texture: true, textureSource: true })
+                map_preview = preview_file = null
+                document.querySelectorAll('.tools button').forEach(button => button.disabled = false)
+                document.getElementById("tile_selection").hidden = false
+                document.getElementById("preview_notice").hidden = true
+                tile_blending = true
                 for (const { mesh } of Object.values(tile_map)) mesh.destroy()
                 tile_map = {}
             }

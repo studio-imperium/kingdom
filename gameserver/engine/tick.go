@@ -102,7 +102,15 @@ func (engine *Engine) Tick(delta time.Duration) {
 			if character == nil || character.Dead || character.disconnected {
 				continue
 			}
-			if loot.pickupDelay <= 0 && Distance(character, loot) < 1 && character.AddItemOrBust(loot.loot) {
+			if loot.pickupDelay > 0 {
+				continue
+			}
+			distance := Distance(character, loot)
+			if loot.pickupNeedsExit {
+				loot.pickupNeedsExit = distance < 1
+				continue
+			}
+			if distance < 1 && character.AddItemOrBust(loot.loot) {
 				loot.Dead = true
 				character.Apply()
 				for recipientID := range loot.eligible {

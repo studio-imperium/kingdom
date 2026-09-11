@@ -199,7 +199,7 @@ func TestLootEligibilityPickupAndExpiry(t *testing.T) {
 	}
 }
 
-func TestDroppedItemPickupDelay(t *testing.T) {
+func TestDroppedItemRequiresDelayAndLeavingPickupRange(t *testing.T) {
 	if err := InitAssets(testAssets.URL + "/"); err != nil {
 		t.Fatal(err)
 	}
@@ -219,8 +219,17 @@ func TestDroppedItemPickupDelay(t *testing.T) {
 		t.Fatal("dropped item picked up before delay elapsed")
 	}
 	world.Tick(time.Second)
+	world.Tick(3 * time.Second)
+	if len(character.inventory) != 0 || len(world.Loot) != 1 {
+		t.Fatal("dropped item picked up while still standing on it")
+	}
+	x, y := character.x, character.y
+	character.Move(x+1, y, 0)
+	world.Tick(0)
+	character.Move(x, y, 0)
+	world.Tick(0)
 	if character.inventory[0] != 8 || len(world.Loot) != 0 {
-		t.Fatal("dropped item could not be picked up after delay")
+		t.Fatal("dropped item could not be picked up after leaving and returning")
 	}
 }
 

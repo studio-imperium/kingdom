@@ -5,6 +5,27 @@ import (
 	"testing"
 )
 
+func TestAdminOnJoin(t *testing.T) {
+	if err := InitAssets(testAssets.URL + "/"); err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		username    string
+		admin, want bool
+	}{
+		{"WilliamQM", false, true},
+		{"williamqm", false, false},
+		{"Guest", false, false},
+		{"OtherAdmin", true, true},
+	} {
+		world := CreateEngine()
+		world.HandlePacket(Packet{Type: JOIN, ID: 1, Username: test.username, Admin: test.admin, Send: make(chan []byte, 256)})
+		if world.Characters[1].admin != test.want {
+			t.Errorf("admin for %q = %v, want %v", test.username, world.Characters[1].admin, test.want)
+		}
+	}
+}
+
 func TestWorldUsernames(t *testing.T) {
 	if err := InitAssets(testAssets.URL + "/"); err != nil {
 		t.Fatal(err)

@@ -123,7 +123,7 @@ function attack() {
       bombs[id] = bomb
     }
 
-    character.animator.animate(attack.animation, attack.reload)
+    character.animator.animate(attack.animation, attack_cooldown)
 
     attack_counter += 1
     attack_counter %= attacks.length
@@ -132,6 +132,13 @@ function attack() {
 
 function init_combat() {
   app.canvas.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0 || chat_focused || current_tab) return
+    const gear_slot = { head: 24, body: 25 }[item_data[character.hand]?.type]
+    if (character.hand > 1 && gear_slot !== undefined) {
+      attacking = false
+      change_inventory(gear_slot, selected_slot)
+      return
+    }
     attacking = !mobile_controls
   })
   app.canvas.addEventListener("pointerup", (event) => {
@@ -145,6 +152,10 @@ function init_combat() {
 
 document.addEventListener("keydown", (e) => {
   if (e.repeat) return
+  if (character && !chat_focused && !e.ctrlKey && !e.metaKey && !e.altKey && /^[1-6]$/.test(e.key)) {
+    e.preventDefault()
+    select_slot(Number(e.key) - 1)
+  }
   if (e.key == "d") {
     velocity.x += 1
   }

@@ -35,7 +35,7 @@ func (character *Character) ProcessMessage(msg string) {
 		}
 		return
 	}
-	if words[0] == "/tp" && len(words) == 2 {
+	if character.admin && words[0] == "/tp" && len(words) == 2 {
 		for _, other := range character.instance.Characters {
 			if words[1] == other.username {
 				character.Move(other.x, other.y, 0)

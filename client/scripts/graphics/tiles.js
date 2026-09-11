@@ -4,6 +4,7 @@ app.stage.cullableChildren = true
 
 let default_vertices = get_vertices()
 let tile_map = {}
+let tile_blending = true
 
 function tile_tick() {
   let player_x = Math.floor(character.object.x)
@@ -152,6 +153,7 @@ function reset_tiles() {
 }
 
 function render_tiles() {
+  if (!tile_blending) return
   reset_tiles()
 
   for (const bot_left of Object.values(tile_map)) {

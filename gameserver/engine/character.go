@@ -227,6 +227,7 @@ func (engine *Engine) DropItem(id uint32, slot uint8) {
 
 	l := CreateLoot(item, char.x, char.y)
 	l.pickupDelay = 2
+	l.pickupNeedsExit = true
 	l.eligible[char.id] = true
 	engine.Loot[l.id] = l
 	char.Apply()

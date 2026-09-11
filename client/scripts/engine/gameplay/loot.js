@@ -30,12 +30,14 @@ function build_loot(loot_id) {
   let loot = new PIXI.Container()
   let blueprint = item_data[loot_id].hand
 
-  loot_obj = build_object(blueprint)
+  const loot_obj = build_object(blueprint)
   loot_obj.angle = -blueprint.angle
   loot_obj.getChildAt(0).x = -5
   loot_obj.getChildAt(0).y = -5
   loot_layer.attach(loot_obj)
   loot.addChild(loot_obj)
+  const bounds = loot.getLocalBounds()
+  loot.pivot.set(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)
 
   return loot
 }

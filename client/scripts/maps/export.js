@@ -1,4 +1,5 @@
 function export_map() {
+    if (preview_file) return download_map(preview_file)
     const tiles = Object.values(tile_map)
     if (!tiles.length) return alert("Paint some terrain before exporting.")
     let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity
@@ -15,8 +16,12 @@ function export_map() {
     data.setUint16(4, Math.floor(size / 2), true)
     data.setUint16(8, size, true)
     for (const { x, y, idx } of tiles) data.setUint8(10 + ((y - top) * size + x - left) * 3, idx)
+    download_map(new Blob([data.buffer], { type: "application/octet-stream" }))
+}
+
+function download_map(file) {
     const link = document.createElement("a")
-    link.href = URL.createObjectURL(new Blob([data.buffer], { type: "application/octet-stream" }))
+    link.href = URL.createObjectURL(file)
     link.download = "terrain.map"
     link.click()
     setTimeout(() => URL.revokeObjectURL(link.href), 1000)

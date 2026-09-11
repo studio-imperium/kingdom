@@ -8,14 +8,15 @@ import (
 )
 
 type Loot struct {
-	eligible    map[uint32]bool
-	id          uint32
-	loot        uint8
-	x           float32
-	y           float32
-	timer       float32
-	pickupDelay float32
-	Dead        bool
+	eligible        map[uint32]bool
+	id              uint32
+	loot            uint8
+	x               float32
+	y               float32
+	timer           float32
+	pickupDelay     float32
+	pickupNeedsExit bool
+	Dead            bool
 }
 
 func (l *Loot) GetX() float32 { return l.x }

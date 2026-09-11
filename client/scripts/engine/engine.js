@@ -339,6 +339,7 @@ class Animator {
   }
 
   animate(which, duration = 0) {
+    if (this.animation) this.tick(Infinity)
     this.animation = animation_data[which]
     this.timestamp = 0
     this.duration = duration

@@ -1,9 +1,10 @@
 let current_tab = null
 
 const inventoryNode = document.getElementById("inventory")
+const menuNode = document.getElementById("menu")
 
 function toggle_inventory() {
-  if (current_tab == null) {
+  if (current_tab != inventoryNode) {
     open_tab(inventoryNode)
     const rect = preview_canvas.getBoundingClientRect()
     preview.renderer.resize(rect.width, rect.height)
@@ -21,18 +22,22 @@ function close_tab() {
   }
 }
 function open_tab(tab) {
+  close_tab()
   current_tab = tab
   current_tab.classList.remove("hidden")
 }
 
 document.addEventListener("keydown", (e) => {
-  if (chat_focused) {
+  if (chat_focused || e.repeat) {
     return
   }
   if (e.key == "Escape") {
-    close_tab()
+    current_tab ? close_tab() : open_tab(menuNode)
+    const tooltip = document.getElementById("controls_tooltip")
+    if (tooltip.textContent == "[ESC] to open menu") tooltip.classList.add("hidden")
   }
   if (e.key == "e") {
     toggle_inventory()
+    document.getElementById("controls_tooltip").textContent = "[ESC] to open menu"
   }
 })

@@ -64,7 +64,7 @@ function start_engine() {
         colorAnimator.tick(deltaMS)
       }
 
-      if (Date.now() > interpolator.last_frame + stale_timeout) {
+      if (Date.now() > interpolator.last_frame + 400) {
         npcs[id].kill(id)
       }
     }

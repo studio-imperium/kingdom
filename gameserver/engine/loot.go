@@ -8,13 +8,14 @@ import (
 )
 
 type Loot struct {
-	eligible map[uint32]bool
-	id       uint32
-	loot     uint8
-	x        float32
-	y        float32
-	timer    float32
-	Dead     bool
+	eligible    map[uint32]bool
+	id          uint32
+	loot        uint8
+	x           float32
+	y           float32
+	timer       float32
+	pickupDelay float32
+	Dead        bool
 }
 
 func (l *Loot) GetX() float32 { return l.x }
@@ -67,4 +68,5 @@ func (loot *Loot) Looted() []byte {
 func (loot *Loot) Tick(delta time.Duration) {
 	secs := float32(delta) / float32(time.Second)
 	loot.timer -= secs
+	loot.pickupDelay -= secs
 }

@@ -61,9 +61,9 @@ function create_gear_slot(idx) {
   slot.className = "inventory_slot gear_slot"
   sprite.className = "placeholder_sprite"
   if (idx == 24) {
-    sprite.style.backgroundPosition = "0px -144px"
+    sprite.style.backgroundPosition = "0px -288px"
   } else if (idx == 25) {
-    sprite.style.backgroundPosition = "-0.5px -153.5px"
+    sprite.style.backgroundPosition = "-1px -307px"
   }
   slot.appendChild(sprite)
   return slot
@@ -130,14 +130,14 @@ function set_slot(slot_node, item_id) {
   let data = item_data[item_id]
   let sprite_node = slot_node.querySelector(".slot_sprite")
 
-  sprite_node.style.backgroundPosition = `${-data.sprite.x}px ${-data.sprite.y}px`
+  sprite_node.style.backgroundPosition = `${-data.sprite.x * 2}px ${-data.sprite.y * 2}px`
 }
 
 function set_gear_slot(slot_node, item_id) {
   let data = item_data[item_id]
   let sprite = slot_node.querySelector(".slot_sprite")
   let placeholder = slot_node.querySelector(".placeholder_sprite")
-  sprite.style.backgroundPosition = `${-data.sprite.x}px ${-data.sprite.y}px`
+  sprite.style.backgroundPosition = `${-data.sprite.x * 2}px ${-data.sprite.y * 2}px`
 
   if (item_id < 2) {
     placeholder.classList.remove("hidden")

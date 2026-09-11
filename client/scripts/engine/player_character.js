@@ -1,4 +1,5 @@
 let character = null
+let level = 1n
 let speed = 4
 let reload = 1
 let inventory = {}
@@ -72,15 +73,7 @@ const healthbar = document.getElementById("health")
 const health_label = document.getElementById("health_label")
 function update_healthbar(health, max_health) {
   healthbar.style.width = (100 * health) / max_health + "%"
-  health_label.innerHTML = health
-}
-
-const expbar = document.getElementById("exp")
-const exp_label = document.getElementById("exp_label")
-function update_expbar(exp) {
-  // Keep in sync with ExpPerLevel in gameserver/engine/progression.go.
-  expbar.style.width = exp % 100n + "%"
-  exp_label.textContent = "Lv " + (1n + exp / 100n)
+  health_label.textContent = "Lv." + level
 }
 
 function attack() {
@@ -138,9 +131,8 @@ function attack() {
 }
 
 function init_combat() {
-  if (mobile_controls) return
   app.canvas.addEventListener("pointerdown", (event) => {
-    attacking = true
+    attacking = !mobile_controls
   })
   app.canvas.addEventListener("pointerup", (event) => {
     attacking = false

@@ -1,27 +1,37 @@
 let mobile_controls = null
+let joysticks = null
+const desktop_angle_preview = angle_preview
+const mobile_query = window.matchMedia("(any-pointer: coarse)")
 
 async function configure_mobile() {
-  const is_mobile = window.matchMedia("(any-pointer: coarse)").matches
-  if (is_mobile) {
-    const main_interface = document.getElementById("lobby_main")
-    if (!main_interface) {
-      if (!mobile_controls) mobile_controls = { left: create_joystick("left", app.canvas), right: create_joystick("right", app.canvas) }
-      return
-    }
-    const utilities_list = document.getElementById("utilities")
-    const map_button = document.getElementById("map_button")
-    const leaderboard_button = document.getElementById("leaderboard_button")
-    const graveyard_button = document.getElementById("graveyard_button")
-    const login_preview = document.getElementById("login_preview")
-    const register_preview = document.getElementById("register_preview")
+  const is_mobile = mobile_query.matches
+  angle_preview = is_mobile ? () => {} : desktop_angle_preview
+  if (is_mobile && preview_character) preview_character.angle = 98
 
-    utilities_list.classList.add("column")
-    map_button.classList.add("hidden")
-    login_preview.classList.add("hidden")
-    register_preview.classList.add("hidden")
-    main_interface.removeChild(leaderboard_button)
-    main_interface.removeChild(graveyard_button)
-    utilities_list.appendChild(leaderboard_button)
-    utilities_list.appendChild(graveyard_button)
+  const main_interface = document.getElementById("lobby_main")
+  if (!main_interface) {
+    if (is_mobile) document.getElementById("controls_tooltip").classList.add("hidden")
+    document.getElementById("backpack_button").classList.toggle("hidden", !is_mobile)
+    document.getElementById("home_button").classList.toggle("hidden", !is_mobile)
+    if (is_mobile && !joysticks) joysticks = { left: create_joystick("left", app.canvas), right: create_joystick("right", app.canvas) }
+    mobile_controls = is_mobile ? joysticks : null
+    attacking = false
+    return
   }
+
+  const utilities_list = document.getElementById("utilities")
+  utilities_list.classList.toggle("column", is_mobile)
+  document.getElementById("map_button").classList.toggle("hidden", is_mobile)
+  document.getElementById("login_preview").classList.toggle("hidden", is_mobile)
+  document.getElementById("register_preview").classList.toggle("hidden", is_mobile)
+  const buttons = is_mobile ? utilities_list : main_interface
+  buttons.appendChild(document.getElementById("leaderboard_button"))
+  buttons.appendChild(document.getElementById("graveyard_button"))
 }
+
+window.addEventListener("resize", () => {
+  if (!app.renderer) return
+  app.resize()
+  configure_mobile()
+})
+mobile_query.addEventListener("change", () => { if (app.renderer) configure_mobile() })

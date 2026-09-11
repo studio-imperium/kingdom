@@ -5,6 +5,7 @@ let preview_character = null
 const preview_texture_cache = {}
 
 function angle_preview(x, y) {
+  if (!preview_character) return
   center_x =
     preview_canvas.getBoundingClientRect().left + preview_canvas.width / 2
   center_y =
@@ -44,6 +45,9 @@ async function init_preview() {
     resolution: 1,
   })
   preview.canvas.style.imageRendering = "pixelated"
+  preview.renderer.on("resize", () => {
+    if (preview_character) preview_character.position.set(preview.screen.width / 2, preview.screen.height / 2)
+  })
 }
 
 function build_preview_character(hand, head, body) {

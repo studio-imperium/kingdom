@@ -56,6 +56,16 @@
                 transform: translate(-50%, 0);
             }
 
+            .tooltip {
+                background: none;
+                border: none;
+                padding: 0;
+                font: inherit;
+                color: white;
+                opacity: 0.7;
+                pointer-events: none;
+            }
+
             .message_container {
                 position: absolute;
                 bottom: 1rem;
@@ -155,24 +165,15 @@
     <body style="margin: 0">
         <div id="connecting_screen" role="status"><span id="connecting_status">Connecting...</span></div>
         <script src="/scripts/loading/water.js"></script>
-        <div class="bottom_container row">
-            <button onclick="toggle_inventory()" class="blank_button hidden">
-                <span class="sprite" style="background-position: -20px -90px;"></span>
-            </button>
-            <div class="column">
-                <div id="healthbar" class="progressbar">
-                    <div id="health" style="background-color: #e14b4b;" class="progress" style="width: 90%"></div>
-                    <p id="health_label" class="progress_label">25</p>
-                </div>
-                <div id="expbar" class="progressbar">
-                    <div id="exp" style="background-color: #75e8df; width: 0%;" class="progress"></div>
-                    <p id="exp_label" class="progress_label">Lv 1</p>
-                </div>
-                <div id="hotbar" class="slots"></div>
+        <div class="top_right column">
+            <span id="controls_tooltip" class="tooltip">[E] to open backpack</span>
+        </div>
+        <div class="bottom_container">
+            <div id="healthbar" class="progressbar">
+                <div id="health" style="background-color: #e14b4b;" class="progress" style="width: 90%"></div>
+                <p id="health_label" class="progress_label">Lv.1</p>
             </div>
-            <button onclick="toggle_inventory()" class="blank_button hidden">
-                <span class="sprite" style="background-position: -10px -90px;"></span>
-            </button>
+            <div id="hotbar" class="slots"></div>
         </div>
         <form onsubmit="submit_message(event)" class="message_container">
             <div class="messages" id="messages">
@@ -185,14 +186,33 @@
                 <div class="inventory_top">
                     <canvas id="inventory_preview" class="inventory_preview" width="112" height="112"></canvas>
                     <div id="equipment_slots" class="equipment_slots"></div>
-                    <button class="close_inventory blank_button" onclick="toggle_inventory()">
-                        <span class="sprite" style="background-position: -10px -90px;"></span>
-                    </button>
                 </div>
                 <div id="inventory_storage" class="inventory_storage"></div>
                 <div class="seperator"></div>
                 <div id="inventory_hotbar" class="inventory_hotbar"></div>
             </div>
+        </div>
+
+        <div id="menu" class="inventory_container hidden">
+            <div class="center">
+                <div class="panel">
+                    <h3>Exit game</h3>
+                    Do you want to exit?
+                    <div class="group">
+                        <button type="button" onclick="close_tab()">Cancel</button>
+                        <button type="button" onclick="location.href='/'">Exit</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="top_left" style="filter: opacity(0.7);">
+            <button id="home_button" class="blank_button hidden" onclick="open_tab(menuNode)" aria-label="Open exit menu">
+                <span class="sprite" style="background-position: -40px -180px;"></span>
+            </button>
+            <button id="backpack_button" class="blank_button hidden" onclick="toggle_inventory()" aria-label="Open backpack">
+                <span class="sprite" style="background-position: -20px -180px;"></span>
+            </button>
         </div>
 
         <script src="/scripts/pkgs/pixi.js"></script>

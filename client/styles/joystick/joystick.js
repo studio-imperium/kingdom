@@ -39,7 +39,7 @@ function create_joystick(side, surface) {
   }
 
   surface.addEventListener("pointerdown", (event) => {
-    if (pointer_id !== null || event.button !== 0) return
+    if (!mobile_controls || pointer_id !== null || event.button !== 0) return
     const rect = surface.getBoundingClientRect()
     if ((event.clientX < rect.left + rect.width / 2) !== (side === "left")) return
     event.preventDefault()

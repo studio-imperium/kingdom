@@ -3,23 +3,52 @@ package engine
 import (
 	"bytes"
 	"encoding/binary"
+	"gameserver/engine/simulation"
 )
 
 func Hit(projectile *Projectile, target Entity) {
-	if npc, ok := target.(*Npc); ok {
-		npc.damage[projectile.owner] += projectile.damage
-	}
-	target.Damage(projectile.damage)
+	damage(target, projectile.damage, projectile.owner, projectile.evil)
 	if !projectileData[projectile.id].Piercing {
 		projectile.Dead = true
 	}
 }
 
 func Splode(bomb *Bomb, target Entity) {
-	if npc, ok := target.(*Npc); ok {
-		npc.damage[bomb.owner] += bomb.damage
+	damage(target, bomb.damage, bomb.owner, bomb.evil)
+}
+
+func damage(target Entity, amount float32, owner uint32, evil bool) {
+	switch victim := target.(type) {
+	case *Npc:
+		if victim.Dead {
+			return
+		}
+		victim.damage[owner] += amount
+	case *Character:
+		if victim.Dead {
+			return
+		}
 	}
-	target.Damage(bomb.damage)
+	target.Damage(amount)
+	victim, ok := target.(*Character)
+	if !ok || !victim.Dead || evil || victim.id == owner {
+		return
+	}
+	if killer := victim.instance.Characters[owner]; killer != nil {
+		killer.AwardExp(victim.Exp / 2)
+	}
+	for _, item := range []uint8{victim.inventory[victim.hand], victim.head, victim.body} {
+		if item <= 1 {
+			continue
+		}
+		loot := CreateLoot(item, victim.x, victim.y)
+		for id, character := range victim.instance.Characters {
+			if !character.Dead && !character.disconnected && Distance(victim, character) <= simulation.RenderDistance {
+				loot.eligible[id] = true
+			}
+		}
+		victim.instance.Loot[loot.id] = loot
+	}
 }
 
 func hitboxesIntersect(projectile *Projectile, entity Entity, is_npc bool) bool {

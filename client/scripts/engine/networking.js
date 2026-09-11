@@ -92,9 +92,10 @@ function set_character(data) {
   }
   refresh_inventory(inventory, hand, head, body)
   update_preview()
-  update_healthbar(health, max_health)
   const exp_offset = 31 + slots * 2
-  update_expbar(data.byteLength >= exp_offset + 8 ? data.getBigInt64(exp_offset, true) : BigInt(account?.data?.characters?.[0]?.exp || 0))
+  const exp = data.byteLength >= exp_offset + 8 ? data.getBigInt64(exp_offset, true) : BigInt(account?.data?.characters?.[0]?.exp || 0)
+  level = 1n + exp / 100n // Keep in sync with ExpPerLevel in gameserver/engine/progression.go.
+  update_healthbar(health, max_health)
 }
 
 function set_world(data) {

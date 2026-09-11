@@ -199,6 +199,31 @@ func TestLootEligibilityPickupAndExpiry(t *testing.T) {
 	}
 }
 
+func TestDroppedItemPickupDelay(t *testing.T) {
+	if err := InitAssets(testAssets.URL + "/"); err != nil {
+		t.Fatal(err)
+	}
+	world := CreateEngine()
+	joinPlayer(world, 1)
+	character := world.Characters[1]
+	world.DropItem(1, 0)
+	if len(character.inventory) != 0 || len(world.Loot) != 1 {
+		t.Fatal("item was not dropped")
+	}
+	for _, loot := range world.Loot {
+		character.Move(loot.x, loot.y, 0)
+	}
+	world.Tick(0)
+	world.Tick(time.Second)
+	if len(character.inventory) != 0 || len(world.Loot) != 1 {
+		t.Fatal("dropped item picked up before delay elapsed")
+	}
+	world.Tick(time.Second)
+	if character.inventory[0] != 8 || len(world.Loot) != 0 {
+		t.Fatal("dropped item could not be picked up after delay")
+	}
+}
+
 func TestDeathAndSlowConnection(t *testing.T) {
 	if err := InitAssets(testAssets.URL + "/"); err != nil {
 		t.Fatal(err)

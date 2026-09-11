@@ -60,21 +60,21 @@
 
 .placeholder_sprite {
     position: absolute;
-    left: 2px;
-    bottom: 2px;
-    transform: translate(50%, -50%);
+    left: 50%;
+    top: 50%;
+    translate: -50% -50%;
 
     pointer-events: none;
     background-color: transparent;
 
-    background-image: url("/assets/assets.png");
+    background-image: url("/assets/assets_upscaled.png");
     background-position: 999px -10px;
     background-repeat: no-repeat;
-    background-size: 512px 512px;
+    background-size: 1024px 1024px;
     padding: 0;
-    width: 10px;
-    height: 10px;
-    scale: 4;
+    width: 20px;
+    height: 20px;
+    scale: 2;
     image-rendering: pixelated;
     border: 0;
 }
@@ -90,6 +90,15 @@
 
 .inventory_storage {
     margin-bottom: 4px;
+}
+
+@media (any-pointer: coarse) {
+    .inventory_panel { height: 90vh; display: grid; grid-template-rows: minmax(0, 1fr) auto auto auto; }
+    .inventory_top { height: 100%; }
+}
+
+@media (any-pointer: coarse) and (orientation: landscape) {
+    .inventory_storage { grid-template-columns: repeat(9, 3.625rem); }
 }
 
 .inventory_slot_container {
@@ -124,8 +133,8 @@
 }
 
 .gear_slot .slot_sprite {
-    filter: drop-shadow(0.5px 0 0 black) drop-shadow(-0.5px 0 0 black)
-        drop-shadow(0 0.5px 0 black) drop-shadow(0 -0.5px 0 black) !important;
+    filter: drop-shadow(1px 0 0 black) drop-shadow(-1px 0 0 black)
+        drop-shadow(0 1px 0 black) drop-shadow(0 -1px 0 black) !important;
 }
 
 .dragging {
@@ -175,21 +184,23 @@
     background-color: #848484 !important;
     border: 4px solid white !important;
 }
-.slot_sprite {
+.slot > .slot_sprite, .inventory_slot > .slot_sprite { margin: -5px; }
+
+.slot_sprite, .sprite, .img_button span {
     pointer-events: none;
     background-color: transparent;
 
-    background-image: url("/assets/assets.png");
+    background-image: url("/assets/assets_upscaled.png");
     background-position: 999px -10px;
     background-repeat: no-repeat;
-    background-size: 512px 512px;
+    background-size: 1024px 1024px;
     padding: 0;
-    width: 10px;
-    height: 10px;
-    scale: 4;
+    width: 20px;
+    height: 20px;
+    scale: 2;
     image-rendering: pixelated;
     border: 0;
-    filter: drop-shadow(0.5px 0 0 #2A2A2A)
-        drop-shadow(-0.5px 0 0 #2A2A2A) drop-shadow(0 0.5px 0 #2A2A2A)
-        drop-shadow(0 -0.5px 0 #2A2A2A);
+    filter: drop-shadow(1px 0 0 #2A2A2A)
+        drop-shadow(-1px 0 0 #2A2A2A) drop-shadow(0 1px 0 #2A2A2A)
+        drop-shadow(0 -1px 0 #2A2A2A);
 }

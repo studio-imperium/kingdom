@@ -86,7 +86,7 @@ async function fetch_leaderboards() {
       if (item_id > 1) {
         const sprite = document.createElement("button")
         sprite.className = "slot_sprite"
-        sprite.style.backgroundPosition = `${-data.sprite.x}px ${-data.sprite.y}px`
+        sprite.style.backgroundPosition = `${-data.sprite.x * 2}px ${-data.sprite.y * 2}px`
 
         slot.append(sprite)
       }
@@ -142,7 +142,7 @@ function populate_graveyard() {
       if (item_id > 1) {
         const sprite = document.createElement("button")
         sprite.className = "slot_sprite"
-        sprite.style.backgroundPosition = `${-data.sprite.x}px ${-data.sprite.y}px`
+        sprite.style.backgroundPosition = `${-data.sprite.x * 2}px ${-data.sprite.y * 2}px`
 
         slot.append(sprite)
       }

@@ -40,19 +40,23 @@ async function load_background_map() {
   offset += 2
 
 
-  const width = app.screen.width
-  const height = app.screen.height
-  const scale = app.stage.scale
+  function resize_background_map() {
+    const width = app.screen.width
+    const height = app.screen.height
+    const scale = app.stage.scale
 
-  app.stage.position.set(width / 2, height / 2)
+    app.stage.position.set(width / 2, height / 2)
 
-  const dx = Math.ceil(width / (2 * scale.x)) + 2
-  const dy = Math.ceil(height / (2 * scale.y)) + 2
+    const dx = Math.ceil(width / (2 * scale.x)) + 2
+    const dy = Math.ceil(height / (2 * scale.y)) + 2
 
-  for (let y = -dy; y <= dy; y++) {
-    for (let x = -dx; x <= dx; x++) {
-      if (!tile_map[`${x},${y}`]) add_tile(x, y, map.getUint8(offset + ((y + center) * map_size + x + center) * 3))
+    for (let y = -dy; y <= dy; y++) {
+      for (let x = -dx; x <= dx; x++) {
+        if (!tile_map[`${x},${y}`]) add_tile(x, y, map.getUint8(offset + ((y + center) * map_size + x + center) * 3))
+      }
     }
+    render_tiles()
   }
-  render_tiles()
+  resize_background_map()
+  app.renderer.on("resize", resize_background_map)
 }

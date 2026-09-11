@@ -63,7 +63,7 @@
                 margin: 0;
 
                 width: 20rem;
-                max-width: 20rem;
+                max-width: min(20rem, calc(50vw - 198px - 4rem));
                 height: 10rem;
                 max-height: 10rem;
                 overflow: hidden;
@@ -156,7 +156,7 @@
         <div id="connecting_screen" role="status"><span id="connecting_status">Connecting...</span></div>
         <script src="/scripts/loading/water.js"></script>
         <div class="bottom_container row">
-            <button onclick="toggle_inventory()" class="blank_button">
+            <button onclick="toggle_inventory()" class="blank_button hidden">
                 <span class="sprite" style="background-position: -20px -90px;"></span>
             </button>
             <div class="column">
@@ -166,7 +166,7 @@
                 </div>
                 <div id="hotbar" class="slots"></div>
             </div>
-            <button onclick="toggle_inventory()" class="blank_button">
+            <button onclick="toggle_inventory()" class="blank_button hidden">
                 <span class="sprite" style="background-position: -10px -90px;"></span>
             </button>
         </div>

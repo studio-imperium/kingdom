@@ -4,7 +4,7 @@ function update_account_buttons() {
   const logged_in = account?.valid && !account.guest
   document.getElementById("login_button").classList.toggle("hidden", !!logged_in)
   document.getElementById("logout_button").classList.toggle("hidden", !logged_in)
-  document.getElementById("graveyard_button").classList.toggle("hidden", !logged_in)
+  document.getElementById("graveyard_button").classList.toggle("hidden", !logged_in || !account.data.graveyard.length)
 }
 
 function switch_screen(screen_name = "home") {

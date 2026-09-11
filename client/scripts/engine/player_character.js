@@ -79,7 +79,8 @@ function update_healthbar(health, max_health) {
 function attack() {
   const data = item_data[character.hand]
 
-  if (data && data.on_use && attack_cooldown < 0) {
+  if (data && data.on_use) {
+    if (attack_cooldown > 0) return
     attack_cooldown = 0.5
     send_attack(character.object.x, character.object.y, character.object.angle)
   } else if (data && data.attacks) {
@@ -139,6 +140,7 @@ function init_combat() {
       change_inventory(gear_slot, selected_slot)
       return
     }
+    if (mobile_controls && item_data[character.hand]?.on_use) attack()
     attacking = !mobile_controls
   })
   app.canvas.addEventListener("pointerup", (event) => {

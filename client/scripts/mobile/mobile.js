@@ -4,6 +4,7 @@ const desktop_angle_preview = angle_preview
 const mobile_query = window.matchMedia("(any-pointer: coarse)")
 
 async function configure_mobile() {
+  if (document.body.classList.contains("game_over")) return
   const is_mobile = mobile_query.matches
   angle_preview = is_mobile ? () => {} : desktop_angle_preview
   if (is_mobile && preview_character) preview_character.angle = 98
@@ -30,7 +31,7 @@ async function configure_mobile() {
 }
 
 window.addEventListener("resize", () => {
-  if (!app.renderer) return
+  if (!app.renderer || document.body.classList.contains("game_over")) return
   app.resize()
   configure_mobile()
 })

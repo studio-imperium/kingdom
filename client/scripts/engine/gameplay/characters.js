@@ -20,6 +20,7 @@ class Character {
 
     add_object(this.object)
     this.nameplate = new PIXI.Text({ text: username, style: { fontFamily: "myriad-pro", fontSize: 16, fill: "white", stroke: { color: "#1f1f1f", width: 3 } } })
+    this.nameplate.visible = false
     this.nameplate.anchor.set(0.5, 1)
     this.nameplate.scale.set(1 / 48)
     app.stage.addChild(this.nameplate)
@@ -28,7 +29,7 @@ class Character {
   }
 
   update(x, y, angle, health, hand, head, body) {
-    if (hand + head + body != this.kit) {
+    if (hand !== this.hand || head !== this.head || body !== this.body) {
       let tmp_x = this.object.x
       let tmp_y = this.object.y
 

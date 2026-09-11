@@ -414,13 +414,14 @@ async function connect() {
   function closed(e) {
     console.log(e)
     CONNECTED = false
-    if (!leaving) {
+    if (!leaving && !game_over) {
       const status = document.getElementById("connecting_status")
       if (status) status.innerHTML = 'Connection closed. <a href="/" style="color:inherit">Return to lobby</a>'
     }
   }
 
   function handle_packet(e) {
+    if (game_over) return
     const data = new DataView(e.data)
     const packet_type = data.getUint8(0)
 
@@ -451,7 +452,7 @@ async function connect() {
         loot_loot(data)
         break
       case CHARACTER_DEAD:
-        location.href = "/"
+        show_death()
         break
       default:
         console.log("Bad packet recieved: ", packet_type)

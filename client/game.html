@@ -162,6 +162,7 @@
         <link rel="stylesheet" href="styles/inventory.css">
         <link rel="stylesheet" href="styles/lobby.css">
         <link rel="stylesheet" href="styles/joystick/joystick.css">
+        <link rel="stylesheet" href="styles/death.css">
     </head>
     <body style="margin: 0">
         <div id="connecting_screen" role="status"><span id="connecting_status">Connecting...</span></div>
@@ -216,6 +217,17 @@
             </button>
         </div>
 
+        <div id="death_screen" class="hidden">
+            <div class="death_background"></div>
+            <div class="panel death_content">
+                <h3>You died!</h3>
+                <canvas id="death_preview" style="margin-bottom: -20px;"></canvas>
+                <label id="death_name" class="error"></label>
+                <div class="seperator" style="margin-top: 6px; margin-bottom: 6px;"></div>
+                <button id="death_continue" class="extrusion" style="width: 100%;" onclick="location.href='/'">Continue</button>
+            </div>
+        </div>
+
         <script src="/scripts/pkgs/pixi.js"></script>
         <script src="/scripts/pkgs/filters.js"></script>
 
@@ -238,12 +250,14 @@
 
         <script src="/scripts/engine/inventory/inventory.js"></script>
         <script src="/scripts/engine/inventory/preview.js"></script>
+        <script src="/scripts/graphics/character_preview.js"></script>
 
         <script src="/scripts/engine/chat.js"></script>
         <script src="/scripts/engine/engine.js"></script>
         <script src="/scripts/engine/player_character.js"></script>
         <script src="/styles/joystick/joystick.js"></script>
         <script src="/scripts/mobile/mobile.js"></script>
+        <script src="/scripts/engine/death.js"></script>
 
         <script>
             init()

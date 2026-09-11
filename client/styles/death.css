@@ -1,0 +1,49 @@
+body.game_over > :not(canvas):not(#death_screen) { display: none !important; }
+body.game_over > canvas { pointer-events: none; }
+
+#death_screen {
+    position: absolute;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 10001;
+    display: grid;
+    place-items: center;
+    animation: death_fade 1s ease-out both;
+}
+
+.death_background {
+    position: absolute;
+    inset: 0;
+    background: black;
+    opacity: 0.4;
+    z-index: -1;
+}
+
+.death_content {
+    position: relative;
+    max-width: calc(100vw - 24px);
+    max-height: calc(100vh - 24px);
+    overflow: auto;
+}
+.death_player {
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    overflow: auto;
+}
+.death_player div:not(.slot) {
+    display: flex;
+    justify-content: center;
+    align-items: start;
+    padding: 4px;
+    margin-bottom: -16px;
+}
+.death_player label { font-size: 16px; padding: 8px; }
+.death_player canvas { width: 110px; height: 110px; }
+.death_content .seperator { flex-shrink: 0; }
+
+@keyframes death_fade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}

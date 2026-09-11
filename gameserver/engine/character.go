@@ -279,6 +279,7 @@ func (character *Character) PackFull(packet_type uint8) []byte {
 		data.WriteByte(id)
 	}
 	binary.Write(data, binary.LittleEndian, character.id)
+	binary.Write(data, binary.LittleEndian, character.Exp)
 	return data.Bytes()
 }
 

@@ -39,7 +39,16 @@ func TestFinalCharacterState(t *testing.T) {
 		if world.Characters[1].Level != 2 {
 			t.Fatal("loaded level was not derived from EXP")
 		}
+		initial := <-output
+		expOffset := 31 + int(initial[26])*2
+		if len(initial) != expOffset+8 || int64(binary.LittleEndian.Uint64(initial[expOffset:])) != 120 {
+			t.Fatal("initial character packet missing saved EXP")
+		}
 		world.Characters[1].AwardExp(105)
+		update := <-output
+		if update[0] != HANDSHAKE || int64(binary.LittleEndian.Uint64(update[31+int(update[26])*2:])) != 225 {
+			t.Fatal("earned EXP was not sent to the client")
+		}
 		world.ChangeInventory(1, 1, 0)
 		if dead {
 			world.Characters[1].Damage(1000)
@@ -232,7 +241,7 @@ func TestIslandLoadsAndTicks(t *testing.T) {
 		t.Fatal("empty map")
 	}
 	packet := <-output
-	if packet[0] != HANDSHAKE || binary.LittleEndian.Uint32(packet[len(packet)-4:]) != 1 {
+	if packet[0] != HANDSHAKE || binary.LittleEndian.Uint32(packet[27+int(packet[26])*2:]) != 1 {
 		t.Fatal("missing character identity")
 	}
 	tiles := 0

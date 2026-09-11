@@ -75,6 +75,14 @@ function update_healthbar(health, max_health) {
   health_label.innerHTML = health
 }
 
+const expbar = document.getElementById("exp")
+const exp_label = document.getElementById("exp_label")
+function update_expbar(exp) {
+  // Keep in sync with ExpPerLevel in gameserver/engine/progression.go.
+  expbar.style.width = exp % 100n + "%"
+  exp_label.textContent = "Lv " + (1n + exp / 100n)
+}
+
 function attack() {
   const data = item_data[character.hand]
 

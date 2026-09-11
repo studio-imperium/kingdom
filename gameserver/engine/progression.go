@@ -13,4 +13,5 @@ func (character *Character) AwardExp(amount int64) {
 	}
 	character.Exp += min(amount, math.MaxInt64-character.Exp)
 	character.Level = LevelFromExp(character.Exp)
+	character.Send(character.PackFull(HANDSHAKE))
 }

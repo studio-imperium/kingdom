@@ -93,6 +93,8 @@ function set_character(data) {
   refresh_inventory(inventory, hand, head, body)
   update_preview()
   update_healthbar(health, max_health)
+  const exp_offset = 31 + slots * 2
+  update_expbar(data.byteLength >= exp_offset + 8 ? data.getBigInt64(exp_offset, true) : BigInt(account?.data?.characters?.[0]?.exp || 0))
 }
 
 function set_world(data) {

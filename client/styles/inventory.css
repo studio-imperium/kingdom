@@ -11,7 +11,7 @@
 }
 
 .seperator {
-    background-image: url(./assets/ui/seperator.png);
+    background-image: url(/assets/ui/seperator.png);
     background-size: 120px;
     width: calc(100% + 4px);
     height: 20px;

@@ -11,7 +11,7 @@ var mapFiles embed.FS
 
 func CreateIsland() (*Engine, error) {
 	engine := CreateEngine()
-	f, err := mapFiles.Open("maps/myworld.map")
+	f, err := mapFiles.Open("maps/desertonly.map")
 	if err != nil {
 		return nil, err
 	}
